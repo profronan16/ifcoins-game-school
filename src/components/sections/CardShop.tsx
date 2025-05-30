@@ -24,7 +24,7 @@ export function CardShop() {
     } else {
       toast({
         title: "Carta adquirida!",
-        description: `Você comprou ${item.name} por 25 IFCoins`,
+        description: `Você comprou ${item.name} por ${item.price} IFCoins`,
       });
     }
   };
@@ -118,12 +118,12 @@ export function CardShop() {
             <div key={card.id} className="space-y-3">
               <CollectibleCard card={card} className="h-64" />
               <div className="text-center space-y-2">
-                <p className="font-bold text-ifpr-green">25 IFCoins</p>
+                <p className="font-bold text-ifpr-green">{card.price} IFCoins</p>
                 <Button
                   onClick={() => handlePurchase(card, 'card')}
                   size="sm"
                   className="w-full bg-ifpr-green hover:bg-ifpr-green-dark"
-                  disabled={user.coins < 25}
+                  disabled={user.coins < card.price}
                 >
                   Comprar
                 </Button>

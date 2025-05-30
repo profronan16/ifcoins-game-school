@@ -27,6 +27,7 @@ export interface Card {
   copiesAvailable?: number;
   eventId?: string;
   description?: string;
+  price: number; // Preço em IFCoins
 }
 
 export interface Pack {

@@ -1,5 +1,5 @@
 
-import { Card, Pack, SchoolEvent } from '@/types';
+import { Card, Pack, SchoolEvent, Trade } from '@/types';
 
 export const mockCards: Card[] = [
   {
@@ -8,7 +8,8 @@ export const mockCards: Card[] = [
     rarity: 'common',
     imageUrl: '/placeholder.svg?height=300&width=200',
     available: true,
-    description: 'Representa o compromisso do IFPR com energia sustentável'
+    description: 'Representa o compromisso do IFPR com energia sustentável',
+    price: 15
   },
   {
     id: 'card2',
@@ -16,7 +17,8 @@ export const mockCards: Card[] = [
     rarity: 'rare',
     imageUrl: '/placeholder.svg?height=300&width=200',
     available: true,
-    description: 'O laboratório mais avançado para desenvolvimento de robôs'
+    description: 'O laboratório mais avançado para desenvolvimento de robôs',
+    price: 35
   },
   {
     id: 'card3',
@@ -25,7 +27,8 @@ export const mockCards: Card[] = [
     imageUrl: '/placeholder.svg?height=300&width=200',
     available: true,
     copiesAvailable: 50,
-    description: 'Edição especial dourada do mascote oficial do IFPR'
+    description: 'Edição especial dourada do mascote oficial do IFPR',
+    price: 75
   },
   {
     id: 'card4',
@@ -34,7 +37,8 @@ export const mockCards: Card[] = [
     imageUrl: '/placeholder.svg?height=300&width=200',
     available: true,
     copiesAvailable: 10,
-    description: 'Carta raríssima dos fundadores da instituição'
+    description: 'Carta raríssima dos fundadores da instituição',
+    price: 150
   },
   {
     id: 'card5',
@@ -42,7 +46,8 @@ export const mockCards: Card[] = [
     rarity: 'common',
     imageUrl: '/placeholder.svg?height=300&width=200',
     available: true,
-    description: 'O coração do conhecimento do campus'
+    description: 'O coração do conhecimento do campus',
+    price: 12
   },
   {
     id: 'card6',
@@ -51,7 +56,8 @@ export const mockCards: Card[] = [
     imageUrl: '/placeholder.svg?height=300&width=200',
     available: true,
     eventId: 'event1',
-    description: 'Evento especial de programação competitiva'
+    description: 'Evento especial de programação competitiva',
+    price: 40
   }
 ];
 
@@ -102,5 +108,38 @@ export const mockEvents: SchoolEvent[] = [
     bonusMultiplier: 1.5,
     cards: ['card3'],
     description: 'Exposição dos melhores projetos científicos do ano'
+  }
+];
+
+export const mockTrades: Trade[] = [
+  {
+    id: 'trade1',
+    from: 'student1',
+    to: 'student2',
+    offered: {
+      cards: { 'card1': 2 },
+      coins: 10
+    },
+    requested: {
+      cards: { 'card2': 1 },
+      coins: 0
+    },
+    status: 'pending',
+    timestamp: Date.now() - 3600000
+  },
+  {
+    id: 'trade2',
+    from: 'student3',
+    to: 'student1',
+    offered: {
+      cards: { 'card5': 1 },
+      coins: 25
+    },
+    requested: {
+      cards: { 'card3': 1 },
+      coins: 0
+    },
+    status: 'accepted',
+    timestamp: Date.now() - 7200000
   }
 ];

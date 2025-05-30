@@ -14,6 +14,7 @@ import { Events } from '@/components/sections/Events';
 import { ManageStudents } from '@/components/sections/ManageStudents';
 import { ManageCards } from '@/components/sections/ManageCards';
 import { Settings } from '@/components/sections/Settings';
+import { Trades } from '@/components/sections/Trades';
 
 const Index = () => {
   const { user } = useAuth();
@@ -47,12 +48,7 @@ const Index = () => {
       case 'settings':
         return <Settings />;
       case 'trades':
-        return (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold mb-4">Sistema de Trocas</h2>
-            <p className="text-gray-600">Funcionalidade em desenvolvimento...</p>
-          </div>
-        );
+        return <Trades />;
       default:
         return <StudentDashboard onSectionChange={setActiveSection} />;
     }

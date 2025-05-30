@@ -18,7 +18,8 @@ const mockCards: CardType[] = [
     rarity: 'common',
     imageUrl: 'https://images.unsplash.com/photo-1509391366360-2e959784a276?w=200',
     available: true,
-    description: 'Fonte de energia limpa e renovável'
+    description: 'Fonte de energia limpa e renovável',
+    price: 15
   },
   {
     id: 'card2',
@@ -26,7 +27,8 @@ const mockCards: CardType[] = [
     rarity: 'rare',
     imageUrl: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=200',
     available: true,
-    description: 'Equipamentos de última geração para pesquisa'
+    description: 'Equipamentos de última geração para pesquisa',
+    price: 35
   },
   {
     id: 'card3',
@@ -34,7 +36,8 @@ const mockCards: CardType[] = [
     rarity: 'legendary',
     imageUrl: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=200',
     available: true,
-    description: 'Símbolo da preservação ambiental'
+    description: 'Símbolo da preservação ambiental',
+    price: 75
   }
 ];
 
@@ -48,6 +51,7 @@ export function ManageCards() {
     rarity: 'common' as CardRarity,
     imageUrl: '',
     description: '',
+    price: '',
     copiesAvailable: '',
     eventId: ''
   });
@@ -62,7 +66,7 @@ export function ManageCards() {
   }
 
   const handleCreateCard = () => {
-    if (!newCard.name || !newCard.imageUrl || !newCard.description) {
+    if (!newCard.name || !newCard.imageUrl || !newCard.description || !newCard.price) {
       toast({
         title: "Erro",
         description: "Preencha todos os campos obrigatórios",
@@ -77,6 +81,7 @@ export function ManageCards() {
       rarity: newCard.rarity,
       imageUrl: newCard.imageUrl,
       description: newCard.description,
+      price: parseInt(newCard.price),
       available: true,
       copiesAvailable: newCard.copiesAvailable ? parseInt(newCard.copiesAvailable) : undefined,
       eventId: newCard.eventId || undefined
@@ -88,6 +93,7 @@ export function ManageCards() {
       rarity: 'common',
       imageUrl: '',
       description: '',
+      price: '',
       copiesAvailable: '',
       eventId: ''
     });
@@ -202,7 +208,18 @@ export function ManageCards() {
                 placeholder="Descrição da carta"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="price">Preço (IFCoins)</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  min="1"
+                  value={newCard.price}
+                  onChange={(e) => setNewCard({...newCard, price: e.target.value})}
+                  placeholder="Ex: 25"
+                />
+              </div>
               <div>
                 <Label htmlFor="copies">Cópias Disponíveis (opcional)</Label>
                 <Input
@@ -254,6 +271,7 @@ export function ManageCards() {
                   <TableRow>
                     <TableHead>Nome</TableHead>
                     <TableHead>Raridade</TableHead>
+                    <TableHead>Preço</TableHead>
                     <TableHead>Disponível</TableHead>
                     <TableHead>Cópias</TableHead>
                     <TableHead>Ações</TableHead>
@@ -267,6 +285,9 @@ export function ManageCards() {
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRarityColor(card.rarity)}`}>
                           {getRarityText(card.rarity)}
                         </span>
+                      </TableCell>
+                      <TableCell className="font-bold text-ifpr-green">
+                        {card.price} IFCoins
                       </TableCell>
                       <TableCell>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
