@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,22 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				ifpr: {
+					green: '#00A859',
+					'green-dark': '#008845',
+					'green-light': '#33B973',
+					blue: '#0066CC',
+					'blue-dark': '#0052A3',
+					'blue-light': '#3384D6',
+					gray: '#F5F7FA',
+					'gray-dark': '#E1E8ED'
+				},
+				rarity: {
+					common: '#94A3B8',
+					rare: '#3B82F6',
+					legendary: '#F59E0B',
+					mythic: '#8B5CF6'
 				}
 			},
 			borderRadius: {
@@ -84,11 +101,23 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'flip': {
+					'0%': { transform: 'rotateY(0deg)' },
+					'50%': { transform: 'rotateY(90deg)' },
+					'100%': { transform: 'rotateY(0deg)' }
+				},
+				'coin-flip': {
+					'0%': { transform: 'rotateY(0deg) scale(1)' },
+					'50%': { transform: 'rotateY(180deg) scale(1.1)' },
+					'100%': { transform: 'rotateY(360deg) scale(1)' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'flip': 'flip 0.6s ease-in-out',
+				'coin-flip': 'coin-flip 1s ease-in-out'
 			}
 		}
 	},
