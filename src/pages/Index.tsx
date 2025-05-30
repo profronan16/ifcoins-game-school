@@ -9,6 +9,11 @@ import { TeacherDashboard } from '@/components/dashboard/TeacherDashboard';
 import { AdminDashboard } from '@/components/dashboard/AdminDashboard';
 import { CardShop } from '@/components/sections/CardShop';
 import { Collection } from '@/components/sections/Collection';
+import { Rankings } from '@/components/sections/Rankings';
+import { Events } from '@/components/sections/Events';
+import { ManageStudents } from '@/components/sections/ManageStudents';
+import { ManageCards } from '@/components/sections/ManageCards';
+import { Settings } from '@/components/sections/Settings';
 
 const Index = () => {
   const { user } = useAuth();
@@ -31,45 +36,20 @@ const Index = () => {
         return <Collection />;
       case 'give-coins':
         return <TeacherDashboard />;
+      case 'rankings':
+        return <Rankings />;
+      case 'events':
+        return <Events />;
       case 'manage-students':
-        return (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold mb-4">Gerenciar Estudantes</h2>
-            <p className="text-gray-600">Funcionalidade em desenvolvimento...</p>
-          </div>
-        );
+        return <ManageStudents />;
       case 'manage-cards':
-        return (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold mb-4">Gerenciar Cartas</h2>
-            <p className="text-gray-600">Funcionalidade em desenvolvimento...</p>
-          </div>
-        );
+        return <ManageCards />;
+      case 'settings':
+        return <Settings />;
       case 'trades':
         return (
           <div className="text-center py-12">
             <h2 className="text-2xl font-bold mb-4">Sistema de Trocas</h2>
-            <p className="text-gray-600">Funcionalidade em desenvolvimento...</p>
-          </div>
-        );
-      case 'rankings':
-        return (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold mb-4">Rankings</h2>
-            <p className="text-gray-600">Funcionalidade em desenvolvimento...</p>
-          </div>
-        );
-      case 'events':
-        return (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold mb-4">Eventos</h2>
-            <p className="text-gray-600">Funcionalidade em desenvolvimento...</p>
-          </div>
-        );
-      case 'settings':
-        return (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold mb-4">Configurações</h2>
             <p className="text-gray-600">Funcionalidade em desenvolvimento...</p>
           </div>
         );
