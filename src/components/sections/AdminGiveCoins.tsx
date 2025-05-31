@@ -70,7 +70,7 @@ export function AdminGiveCoins() {
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ 
-          coins: supabase.raw(`coins + ${amount}`),
+          coins: supabase.sql`coins + ${amount}`,
           updated_at: new Date().toISOString()
         })
         .eq('id', selectedUser);

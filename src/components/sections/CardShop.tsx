@@ -10,10 +10,10 @@ import { ShoppingCart, Package, Sparkles } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 export function CardShop() {
-  const { user } = useAuth();
+  const { profile } = useAuth();
   const [selectedTab, setSelectedTab] = useState<'cards' | 'packs'>('packs');
 
-  if (!user || user.role !== 'student') return null;
+  if (!profile || profile.role !== 'student') return null;
 
   const handlePurchase = (item: any, type: 'card' | 'pack') => {
     if (type === 'pack') {
@@ -36,7 +36,7 @@ export function CardShop() {
           <h1 className="text-3xl font-bold text-gray-900">Loja de Cartas</h1>
           <p className="text-gray-600 mt-1">Compre cartas e pacotes especiais</p>
         </div>
-        <CoinBalance balance={user.coins} />
+        <CoinBalance balance={profile.coins} />
       </div>
 
       <div className="flex gap-2 bg-gray-100 p-1 rounded-lg w-fit">
@@ -100,7 +100,7 @@ export function CardShop() {
                   <Button
                     onClick={() => handlePurchase(pack, 'pack')}
                     className="w-full bg-ifpr-green hover:bg-ifpr-green-dark"
-                    disabled={user.coins < pack.price}
+                    disabled={profile.coins < pack.price}
                   >
                     <ShoppingCart className="h-4 w-4 mr-2" />
                     Comprar Pacote
@@ -123,7 +123,7 @@ export function CardShop() {
                   onClick={() => handlePurchase(card, 'card')}
                   size="sm"
                   className="w-full bg-ifpr-green hover:bg-ifpr-green-dark"
-                  disabled={user.coins < card.price}
+                  disabled={profile.coins < card.price}
                 >
                   Comprar
                 </Button>
