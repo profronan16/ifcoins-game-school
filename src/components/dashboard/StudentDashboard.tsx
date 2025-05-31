@@ -1,42 +1,56 @@
 
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { CoinBalance } from '@/components/ui/coin-balance';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CollectibleCard } from '@/components/ui/collectible-card';
-import { mockCards } from '@/data/mockData';
-import { Gift, BookOpen, Users, Trophy, Calendar } from 'lucide-react';
+import { Gift, BookOpen, Users, Trophy, Calendar, Loader2 } from 'lucide-react';
 
 interface StudentDashboardProps {
   onSectionChange: (section: string) => void;
 }
 
 export function StudentDashboard({ onSectionChange }: StudentDashboardProps) {
-  const { user } = useAuth();
+  const { profile } = useAuth();
 
-  if (!user || user.role !== 'student') return null;
+  const { data: userCards, isLoading } = useQuery({
+    queryKey: ['user-cards', profile?.id],
+    queryFn: async () => {
+      if (!profile) return [];
+      
+      const { data, error } = await supabase
+        .from('user_cards')
+        .select(`
+          *,
+          card:cards(*)
+        `)
+        .eq('user_id', profile.id)
+        .order('acquired_at', { ascending: false })
+        .limit(6);
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile && profile.role === 'student',
+  });
 
-  const userCards = Object.entries(user.collection)
-    .map(([cardId, quantity]) => ({
-      card: mockCards.find(c => c.id === cardId)!,
-      quantity
-    }))
-    .filter(item => item.card)
-    .slice(0, 3);
+  if (!profile || profile.role !== 'student') return null;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
-            Bem-vindo, {user.name}!
+            Bem-vindo, {profile.name}!
           </h1>
           <p className="text-gray-600 mt-1">
-            Turma: {user.class} • RA: {user.ra}
+            {profile.class && `Turma: ${profile.class}`} {profile.ra && `• RA: ${profile.ra}`}
           </p>
         </div>
-        <CoinBalance balance={user.coins} showAnimation />
+        <CoinBalance balance={profile.coins} showAnimation />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -60,7 +74,7 @@ export function StudentDashboard({ onSectionChange }: StudentDashboardProps) {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-gray-600">{Object.keys(user.collection).length} cartas coletadas</p>
+            <p className="text-sm text-gray-600">{userCards?.length || 0} cartas coletadas</p>
           </CardContent>
         </Card>
 
@@ -100,13 +114,25 @@ export function StudentDashboard({ onSectionChange }: StudentDashboardProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {userCards.length > 0 ? (
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          ) : userCards && userCards.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {userCards.map((item, index) => (
+              {userCards.map((userCard) => (
                 <CollectibleCard
-                  key={index}
-                  card={item.card}
-                  quantity={item.quantity}
+                  key={userCard.id}
+                  card={{
+                    id: userCard.card.id,
+                    name: userCard.card.name,
+                    rarity: userCard.card.rarity,
+                    imageUrl: userCard.card.image_url || '',
+                    available: userCard.card.available,
+                    price: userCard.card.price,
+                    description: userCard.card.description
+                  }}
+                  quantity={userCard.quantity}
                   className="h-48"
                 />
               ))}

@@ -40,12 +40,12 @@ interface SidebarProps {
 }
 
 export function Sidebar({ activeSection, onSectionChange }: SidebarProps) {
-  const { user } = useAuth();
+  const { profile } = useAuth();
 
-  if (!user) return null;
+  if (!profile) return null;
 
   const filteredItems = sidebarItems.filter(item => 
-    item.roles.includes(user.role)
+    item.roles.includes(profile.role)
   );
 
   return (

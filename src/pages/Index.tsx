@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { LoginForm } from '@/components/auth/LoginForm';
+import { AuthPage } from '@/components/auth/AuthPage';
 import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { StudentDashboard } from '@/components/dashboard/StudentDashboard';
@@ -15,21 +15,30 @@ import { ManageStudents } from '@/components/sections/ManageStudents';
 import { ManageCards } from '@/components/sections/ManageCards';
 import { Settings } from '@/components/sections/Settings';
 import { Trades } from '@/components/sections/Trades';
+import { Loader2 } from 'lucide-react';
 
 const Index = () => {
-  const { user } = useAuth();
+  const { profile, loading } = useAuth();
   const [activeSection, setActiveSection] = useState('dashboard');
 
-  if (!user) {
-    return <LoginForm />;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return <AuthPage />;
   }
 
   const renderContent = () => {
     switch (activeSection) {
       case 'dashboard':
-        if (user.role === 'student') return <StudentDashboard onSectionChange={setActiveSection} />;
-        if (user.role === 'teacher') return <TeacherDashboard />;
-        if (user.role === 'admin') return <AdminDashboard onSectionChange={setActiveSection} />;
+        if (profile.role === 'student') return <StudentDashboard onSectionChange={setActiveSection} />;
+        if (profile.role === 'teacher') return <TeacherDashboard />;
+        if (profile.role === 'admin') return <AdminDashboard onSectionChange={setActiveSection} />;
         break;
       case 'shop':
         return <CardShop />;

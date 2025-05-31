@@ -9,7 +9,332 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      cards: {
+        Row: {
+          available: boolean
+          copies_available: number | null
+          created_at: string | null
+          description: string | null
+          event_id: string | null
+          id: string
+          image_url: string | null
+          name: string
+          price: number
+          rarity: Database["public"]["Enums"]["card_rarity"]
+          updated_at: string | null
+        }
+        Insert: {
+          available?: boolean
+          copies_available?: number | null
+          created_at?: string | null
+          description?: string | null
+          event_id?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          price?: number
+          rarity: Database["public"]["Enums"]["card_rarity"]
+          updated_at?: string | null
+        }
+        Update: {
+          available?: boolean
+          copies_available?: number | null
+          created_at?: string | null
+          description?: string | null
+          event_id?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          price?: number
+          rarity?: Database["public"]["Enums"]["card_rarity"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_cards_event"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_cards: {
+        Row: {
+          card_id: string
+          event_id: string
+        }
+        Insert: {
+          card_id: string
+          event_id: string
+        }
+        Update: {
+          card_id?: string
+          event_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_cards_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_cards_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events: {
+        Row: {
+          bonus_multiplier: number
+          created_at: string | null
+          description: string | null
+          end_date: string
+          id: string
+          name: string
+          start_date: string
+          updated_at: string | null
+        }
+        Insert: {
+          bonus_multiplier?: number
+          created_at?: string | null
+          description?: string | null
+          end_date: string
+          id?: string
+          name: string
+          start_date: string
+          updated_at?: string | null
+        }
+        Update: {
+          bonus_multiplier?: number
+          created_at?: string | null
+          description?: string | null
+          end_date?: string
+          id?: string
+          name?: string
+          start_date?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      packs: {
+        Row: {
+          available: boolean
+          created_at: string | null
+          id: string
+          limit_per_student: number
+          name: string
+          price: number
+          probability_common: number
+          probability_legendary: number
+          probability_mythic: number
+          probability_rare: number
+          updated_at: string | null
+        }
+        Insert: {
+          available?: boolean
+          created_at?: string | null
+          id?: string
+          limit_per_student?: number
+          name: string
+          price: number
+          probability_common?: number
+          probability_legendary?: number
+          probability_mythic?: number
+          probability_rare?: number
+          updated_at?: string | null
+        }
+        Update: {
+          available?: boolean
+          created_at?: string | null
+          id?: string
+          limit_per_student?: number
+          name?: string
+          price?: number
+          probability_common?: number
+          probability_legendary?: number
+          probability_mythic?: number
+          probability_rare?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          class: string | null
+          coins: number
+          created_at: string | null
+          email: string
+          id: string
+          name: string
+          ra: string | null
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string | null
+        }
+        Insert: {
+          class?: string | null
+          coins?: number
+          created_at?: string | null
+          email: string
+          id: string
+          name: string
+          ra?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string | null
+        }
+        Update: {
+          class?: string | null
+          coins?: number
+          created_at?: string | null
+          email?: string
+          id?: string
+          name?: string
+          ra?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      reward_logs: {
+        Row: {
+          coins: number
+          created_at: string | null
+          id: string
+          reason: string
+          student_id: string
+          teacher_id: string
+        }
+        Insert: {
+          coins: number
+          created_at?: string | null
+          id?: string
+          reason: string
+          student_id: string
+          teacher_id: string
+        }
+        Update: {
+          coins?: number
+          created_at?: string | null
+          id?: string
+          reason?: string
+          student_id?: string
+          teacher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reward_logs_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reward_logs_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trades: {
+        Row: {
+          created_at: string | null
+          from_user_id: string
+          id: string
+          offered_cards: Json | null
+          offered_coins: number | null
+          requested_cards: Json | null
+          requested_coins: number | null
+          status: Database["public"]["Enums"]["trade_status"]
+          to_user_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          from_user_id: string
+          id?: string
+          offered_cards?: Json | null
+          offered_coins?: number | null
+          requested_cards?: Json | null
+          requested_coins?: number | null
+          status?: Database["public"]["Enums"]["trade_status"]
+          to_user_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          from_user_id?: string
+          id?: string
+          offered_cards?: Json | null
+          offered_coins?: number | null
+          requested_cards?: Json | null
+          requested_coins?: number | null
+          status?: Database["public"]["Enums"]["trade_status"]
+          to_user_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trades_from_user_id_fkey"
+            columns: ["from_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trades_to_user_id_fkey"
+            columns: ["to_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_cards: {
+        Row: {
+          acquired_at: string | null
+          card_id: string
+          id: string
+          quantity: number
+          user_id: string
+        }
+        Insert: {
+          acquired_at?: string | null
+          card_id: string
+          id?: string
+          quantity?: number
+          user_id: string
+        }
+        Update: {
+          acquired_at?: string | null
+          card_id?: string
+          id?: string
+          quantity?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_cards_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_cards_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -18,7 +343,9 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      card_rarity: "common" | "rare" | "legendary" | "mythic"
+      trade_status: "pending" | "accepted" | "rejected"
+      user_role: "student" | "teacher" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +460,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      card_rarity: ["common", "rare", "legendary", "mythic"],
+      trade_status: ["pending", "accepted", "rejected"],
+      user_role: ["student", "teacher", "admin"],
+    },
   },
 } as const
