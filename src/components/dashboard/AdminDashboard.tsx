@@ -9,9 +9,9 @@ interface AdminDashboardProps {
 }
 
 export function AdminDashboard({ onSectionChange }: AdminDashboardProps) {
-  const { user } = useAuth();
+  const { profile } = useAuth();
 
-  if (!user || user.role !== 'admin') return null;
+  if (!profile || profile.role !== 'admin') return null;
 
   const stats = [
     { title: 'Estudantes Ativos', value: '1,247', icon: Users, color: 'text-blue-600' },
@@ -27,7 +27,7 @@ export function AdminDashboard({ onSectionChange }: AdminDashboardProps) {
           Painel Administrativo
         </h1>
         <p className="text-gray-600 mt-1">
-          Bem-vindo, {user.name}
+          Bem-vindo, {profile.name}
         </p>
       </div>
 
@@ -71,6 +71,18 @@ export function AdminDashboard({ onSectionChange }: AdminDashboardProps) {
             </CardTitle>
             <CardDescription>
               Adicionar e configurar cartas colecionáveis
+            </CardDescription>
+          </CardHeader>
+        </Card>
+
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => onSectionChange('give-coins')}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Coins className="h-5 w-5 text-yellow-600" />
+              Dar Moedas
+            </CardTitle>
+            <CardDescription>
+              Dar moedas para estudantes e professores
             </CardDescription>
           </CardHeader>
         </Card>

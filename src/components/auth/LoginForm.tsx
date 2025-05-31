@@ -11,36 +11,28 @@ import { toast } from '@/hooks/use-toast';
 export function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login, isLoading } = useAuth();
+  const { signIn, loading } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await login(email, password);
-      toast({
-        title: "Login realizado com sucesso!",
-        description: "Bem-vindo ao IFCoins",
-      });
+      const { error } = await signIn(email, password);
+      if (error) {
+        toast({
+          title: "Erro no login",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Login realizado com sucesso!",
+          description: "Bem-vindo ao IFCoins",
+        });
+      }
     } catch (error) {
       toast({
         title: "Erro no login",
         description: "Credenciais inválidas. Tente novamente.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleGoogleLogin = async () => {
-    try {
-      // Aqui seria implementado o login com Google
-      toast({
-        title: "Login com Google",
-        description: "Funcionalidade em desenvolvimento...",
-      });
-    } catch (error) {
-      toast({
-        title: "Erro no login",
-        description: "Não foi possível fazer login com Google.",
         variant: "destructive",
       });
     }
@@ -87,32 +79,12 @@ export function LoginForm() {
             <Button 
               type="submit" 
               className="w-full bg-ifpr-green hover:bg-ifpr-green-dark"
-              disabled={isLoading}
+              disabled={loading}
             >
-              {isLoading ? 'Entrando...' : 'Entrar'}
+              {loading ? 'Entrando...' : 'Entrar'}
             </Button>
           </form>
 
-          <div className="mt-4">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">Ou continue com</span>
-              </div>
-            </div>
-            
-            <Button
-              variant="outline"
-              className="w-full mt-4 flex items-center gap-2"
-              onClick={handleGoogleLogin}
-            >
-              <Mail className="h-4 w-4" />
-              Google (Email Institucional)
-            </Button>
-          </div>
-          
           <div className="mt-6 space-y-2 text-sm text-gray-600">
             <p className="font-medium">Usuários de demonstração:</p>
             <div className="text-xs space-y-1">

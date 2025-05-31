@@ -10,12 +10,12 @@ import { Coins, Users, Clock, Award } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 export function TeacherDashboard() {
-  const { user } = useAuth();
+  const { profile } = useAuth();
   const [selectedStudent, setSelectedStudent] = useState('');
   const [coinsAmount, setCoinsAmount] = useState('');
   const [reason, setReason] = useState('');
 
-  if (!user || user.role !== 'teacher') return null;
+  if (!profile || profile.role !== 'teacher') return null;
 
   const handleGiveCoins = () => {
     if (!selectedStudent || !coinsAmount || !reason) {
@@ -54,7 +54,7 @@ export function TeacherDashboard() {
           Painel do Professor
         </h1>
         <p className="text-gray-600 mt-1">
-          Bem-vindo, {user.name}
+          Bem-vindo, {profile.name}
         </p>
       </div>
 
