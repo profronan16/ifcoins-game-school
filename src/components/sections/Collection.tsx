@@ -1,172 +1,216 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CollectibleCard } from '@/components/ui/collectible-card';
-import { mockCards } from '@/data/mockData';
-import { BookOpen, Filter } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { CollectibleCard } from '@/components/ui/collectible-card';
+import { CoinBalance } from '@/components/ui/coin-balance';
+import { Search, Filter, Award, TrendingUp } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { UserCard } from '@/types/supabase';
 
 export function Collection() {
-  const { user } = useAuth();
-  const [filterRarity, setFilterRarity] = useState<string>('all');
+  const { profile } = useAuth();
+  const [userCards, setUserCards] = useState<UserCard[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedRarity, setSelectedRarity] = useState<string>('all');
+  const [loading, setLoading] = useState(true);
 
-  if (!user || user.role !== 'student') return null;
+  useEffect(() => {
+    if (profile) {
+      fetchUserCards();
+    }
+  }, [profile]);
 
-  const userCards = Object.entries(user.collection)
-    .map(([cardId, quantity]) => ({
-      card: mockCards.find(c => c.id === cardId)!,
-      quantity
-    }))
-    .filter(item => item.card);
+  const fetchUserCards = async () => {
+    if (!profile) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('user_cards')
+        .select(`
+          *,
+          card:cards(*)
+        `)
+        .eq('user_id', profile.id);
 
-  const filteredCards = filterRarity === 'all' 
-    ? userCards 
-    : userCards.filter(item => item.card.rarity === filterRarity);
-
-  const totalCards = userCards.reduce((sum, item) => sum + item.quantity, 0);
-  const uniqueCards = userCards.length;
-  const totalPossible = mockCards.length;
-
-  const rarityStats = {
-    common: userCards.filter(item => item.card.rarity === 'common').length,
-    rare: userCards.filter(item => item.card.rarity === 'rare').length,
-    legendary: userCards.filter(item => item.card.rarity === 'legendary').length,
-    mythic: userCards.filter(item => item.card.rarity === 'mythic').length,
+      if (error) throw error;
+      setUserCards(data || []);
+    } catch (error) {
+      console.error('Error fetching user cards:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar sua coleção",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (!profile || profile.role !== 'student') {
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-2xl font-bold mb-4">Acesso Negado</h2>
+        <p className="text-gray-600">Apenas estudantes podem acessar a coleção.</p>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="text-center py-12">
+        <p>Carregando coleção...</p>
+      </div>
+    );
+  }
+
+  const totalCards = userCards.reduce((sum, userCard) => sum + userCard.quantity, 0);
+  const uniqueCards = userCards.length;
+  const rarityCount = userCards.reduce((acc, userCard) => {
+    if (userCard.card) {
+      acc[userCard.card.rarity] = (acc[userCard.card.rarity] || 0) + userCard.quantity;
+    }
+    return acc;
+  }, {} as Record<string, number>);
+
+  const filteredCards = userCards.filter(userCard => {
+    if (!userCard.card) return false;
+    
+    const matchesSearch = userCard.card.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRarity = selectedRarity === 'all' || userCard.card.rarity === selectedRarity;
+    return matchesSearch && matchesRarity;
+  });
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Minha Coleção</h1>
-        <p className="text-gray-600 mt-1">Veja todas as suas cartas colecionáveis</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Minha Coleção</h1>
+          <p className="text-gray-600 mt-1">Veja todas as suas cartas coletadas</p>
+        </div>
+        <CoinBalance balance={profile.coins} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Total de Cartas</CardTitle>
+            <div className="flex items-center gap-2">
+              <Award className="h-5 w-5 text-blue-600" />
+              <CardTitle className="text-lg">Total de Cartas</CardTitle>
+            </div>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-ifpr-green">{totalCards}</p>
+            <p className="text-2xl font-bold text-blue-600">{totalCards}</p>
+            <p className="text-sm text-gray-600">Em sua coleção</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Cartas Únicas</CardTitle>
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-green-600" />
+              <CardTitle className="text-lg">Cartas Únicas</CardTitle>
+            </div>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-ifpr-blue">{uniqueCards}/{totalPossible}</p>
+            <p className="text-2xl font-bold text-green-600">{uniqueCards}</p>
+            <p className="text-sm text-gray-600">Diferentes tipos</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Progresso</CardTitle>
+            <div className="flex items-center gap-2">
+              <Award className="h-5 w-5 text-purple-600" />
+              <CardTitle className="text-lg">Raras</CardTitle>
+            </div>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-purple-600">
-              {Math.round((uniqueCards / totalPossible) * 100)}%
-            </p>
+            <p className="text-2xl font-bold text-purple-600">{rarityCount.rare || 0}</p>
+            <p className="text-sm text-gray-600">Cartas raras</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Carta Mais Rara</CardTitle>
+            <div className="flex items-center gap-2">
+              <Award className="h-5 w-5 text-yellow-600" />
+              <CardTitle className="text-lg">Lendárias</CardTitle>
+            </div>
           </CardHeader>
           <CardContent>
-            <p className="text-lg font-bold text-yellow-600">
-              {rarityStats.mythic > 0 ? 'Mítica' : 
-               rarityStats.legendary > 0 ? 'Lendária' : 
-               rarityStats.rare > 0 ? 'Rara' : 'Comum'}
-            </p>
+            <p className="text-2xl font-bold text-yellow-600">{rarityCount.legendary || 0}</p>
+            <p className="text-sm text-gray-600">Cartas lendárias</p>
           </CardContent>
         </Card>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5" />
-            Estatísticas por Raridade
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center p-3 bg-gray-50 rounded-lg">
-              <div className="w-4 h-4 bg-rarity-common rounded mx-auto mb-2"></div>
-              <p className="font-bold text-rarity-common">{rarityStats.common}</p>
-              <p className="text-sm text-gray-600">Comuns</p>
-            </div>
-            <div className="text-center p-3 bg-blue-50 rounded-lg">
-              <div className="w-4 h-4 bg-rarity-rare rounded mx-auto mb-2"></div>
-              <p className="font-bold text-rarity-rare">{rarityStats.rare}</p>
-              <p className="text-sm text-gray-600">Raras</p>
-            </div>
-            <div className="text-center p-3 bg-yellow-50 rounded-lg">
-              <div className="w-4 h-4 bg-rarity-legendary rounded mx-auto mb-2"></div>
-              <p className="font-bold text-rarity-legendary">{rarityStats.legendary}</p>
-              <p className="text-sm text-gray-600">Lendárias</p>
-            </div>
-            <div className="text-center p-3 bg-purple-50 rounded-lg">
-              <div className="w-4 h-4 bg-rarity-mythic rounded mx-auto mb-2"></div>
-              <p className="font-bold text-rarity-mythic">{rarityStats.mythic}</p>
-              <p className="text-sm text-gray-600">Míticas</p>
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Award className="h-5 w-5" />
+              Filtrar Coleção
+            </CardTitle>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:flex-none">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Buscar cartas..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 w-full sm:w-64"
+                />
+              </div>
+              <select
+                value={selectedRarity}
+                onChange={(e) => setSelectedRarity(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md bg-white text-sm"
+              >
+                <option value="all">Todas as raridades</option>
+                <option value="common">Comum</option>
+                <option value="rare">Rara</option>
+                <option value="legendary">Lendária</option>
+                <option value="mythic">Mítica</option>
+              </select>
             </div>
           </div>
+        </CardHeader>
+        <CardContent>
+          {filteredCards.length === 0 ? (
+            <div className="text-center py-12">
+              <Award className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma carta encontrada</h3>
+              <p className="text-gray-600">
+                {userCards.length === 0 
+                  ? "Você ainda não possui cartas. Visite a loja para começar sua coleção!"
+                  : "Tente ajustar os filtros para encontrar suas cartas."
+                }
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {filteredCards.map((userCard) => (
+                userCard.card && (
+                  <div key={userCard.id} className="relative">
+                    <CollectibleCard
+                      name={userCard.card.name}
+                      rarity={userCard.card.rarity}
+                      imageUrl={userCard.card.image_url || '/placeholder.svg'}
+                    />
+                    <div className="absolute top-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded-full">
+                      x{userCard.quantity}
+                    </div>
+                  </div>
+                )
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
-
-      <div className="flex items-center gap-2">
-        <Filter className="h-5 w-5 text-gray-500" />
-        <span className="text-sm font-medium">Filtrar por raridade:</span>
-        <div className="flex gap-2">
-          {['all', 'common', 'rare', 'legendary', 'mythic'].map((rarity) => (
-            <Button
-              key={rarity}
-              variant={filterRarity === rarity ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilterRarity(rarity)}
-              className={filterRarity === rarity ? 'bg-ifpr-green hover:bg-ifpr-green-dark' : ''}
-            >
-              {rarity === 'all' ? 'Todas' : 
-               rarity === 'common' ? 'Comuns' :
-               rarity === 'rare' ? 'Raras' :
-               rarity === 'legendary' ? 'Lendárias' : 'Míticas'}
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      {filteredCards.length > 0 ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-          {filteredCards.map((item, index) => (
-            <CollectibleCard
-              key={index}
-              card={item.card}
-              quantity={item.quantity}
-              className="h-64"
-            />
-          ))}
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="text-center py-12">
-            <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {filterRarity === 'all' ? 'Nenhuma carta encontrada' : `Nenhuma carta ${filterRarity} encontrada`}
-            </h3>
-            <p className="text-gray-600">
-              {filterRarity === 'all' 
-                ? 'Visite a loja para começar sua coleção!'
-                : 'Tente comprar mais pacotes para encontrar cartas desta raridade.'
-              }
-            </p>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
