@@ -66,11 +66,20 @@ export function AdminGiveCoins() {
     setLoading(true);
 
     try {
+      // Get current user coins first
+      const { data: userData, error: fetchError } = await supabase
+        .from('profiles')
+        .select('coins')
+        .eq('id', selectedUser)
+        .single();
+
+      if (fetchError) throw fetchError;
+
       // Update user coins
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ 
-          coins: supabase.sql`coins + ${amount}`,
+          coins: userData.coins + amount,
           updated_at: new Date().toISOString()
         })
         .eq('id', selectedUser);

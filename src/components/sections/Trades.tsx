@@ -14,7 +14,7 @@ import { Trade } from '@/types';
 import { mockTrades, mockCards } from '@/data/mockData';
 
 export function Trades() {
-  const { user } = useAuth();
+  const { profile } = useAuth();
   const [trades, setTrades] = useState(mockTrades);
   const [isCreating, setIsCreating] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,7 +26,7 @@ export function Trades() {
     requestedCoins: 0
   });
 
-  if (!user || user.role !== 'student') {
+  if (!profile || profile.role !== 'student') {
     return (
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold mb-4">Acesso Negado</h2>
@@ -47,7 +47,7 @@ export function Trades() {
 
     const trade: Trade = {
       id: Date.now().toString(),
-      from: user.uid,
+      from: profile.id,
       to: newTrade.to,
       offered: {
         cards: newTrade.offeredCards,
@@ -120,11 +120,11 @@ export function Trades() {
   };
 
   const filteredTrades = trades.filter(trade =>
-    trade.from === user.uid || trade.to === user.uid
+    trade.from === profile.id || trade.to === profile.id
   );
 
-  const myTrades = filteredTrades.filter(trade => trade.from === user.uid);
-  const receivedTrades = filteredTrades.filter(trade => trade.to === user.uid);
+  const myTrades = filteredTrades.filter(trade => trade.from === profile.id);
+  const receivedTrades = filteredTrades.filter(trade => trade.to === profile.id);
 
   return (
     <div className="space-y-6">
@@ -134,7 +134,7 @@ export function Trades() {
           <p className="text-gray-600 mt-1">Troque cartas e moedas com outros estudantes</p>
         </div>
         <div className="flex items-center gap-4">
-          <CoinBalance balance={user.coins} />
+          <CoinBalance balance={profile.coins} />
           <Button onClick={() => setIsCreating(true)} className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
             Nova Troca
@@ -154,7 +154,7 @@ export function Trades() {
                 id="tradeTo"
                 value={newTrade.to}
                 onChange={(e) => setNewTrade({...newTrade, to: e.target.value})}
-                placeholder="estudante@ifpr.edu.br"
+                placeholder="estudante@estudantes.ifpr.edu.br"
               />
             </div>
             
