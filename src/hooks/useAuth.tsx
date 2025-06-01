@@ -82,16 +82,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string, name: string) => {
     const redirectUrl = `${window.location.origin}/`;
     
-    // Determinar o role baseado no email
+    // Determinar o role baseado no email de forma mais restritiva
     let role: 'student' | 'teacher' | 'admin' = 'student';
     
     if (email.includes('@estudantes.ifpr.edu.br')) {
       role = 'student';
     } else if (email.includes('@ifpr.edu.br')) {
       role = 'teacher';
-    } else {
-      // Para emails pessoais, definir como admin (ou você pode mudar a lógica)
+    } else if (email === 'paulocauan39@gmail.com') {
+      // Apenas seu email específico será admin
       role = 'admin';
+    } else {
+      // Todos os outros emails pessoais serão estudantes por padrão
+      role = 'student';
     }
     
     const { error } = await supabase.auth.signUp({

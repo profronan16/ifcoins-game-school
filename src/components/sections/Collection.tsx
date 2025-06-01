@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -197,9 +196,11 @@ export function Collection() {
                 userCard.card && (
                   <div key={userCard.id} className="relative">
                     <CollectibleCard
-                      name={userCard.card.name}
-                      rarity={userCard.card.rarity}
-                      imageUrl={userCard.card.image_url || '/placeholder.svg'}
+                      card={{
+                        name: userCard.card.name,
+                        rarity: userCard.card.rarity,
+                        imageUrl: userCard.card.image_url || '/placeholder.svg'
+                      }}
                     />
                     <div className="absolute top-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded-full">
                       x{userCard.quantity}
