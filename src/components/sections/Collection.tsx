@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -197,9 +198,13 @@ export function Collection() {
                   <div key={userCard.id} className="relative">
                     <CollectibleCard
                       card={{
+                        id: userCard.card.id,
                         name: userCard.card.name,
                         rarity: userCard.card.rarity,
-                        imageUrl: userCard.card.image_url || '/placeholder.svg'
+                        imageUrl: userCard.card.image_url || '/placeholder.svg',
+                        available: userCard.card.available,
+                        price: userCard.card.price,
+                        description: userCard.card.description
                       }}
                     />
                     <div className="absolute top-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded-full">
