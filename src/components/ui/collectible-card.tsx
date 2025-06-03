@@ -12,23 +12,27 @@ interface CollectibleCardProps {
 const rarityConfig = {
   common: {
     bg: 'bg-gradient-to-br from-gray-100 to-gray-200',
-    border: 'rarity-border-common',
-    text: 'text-rarity-common'
+    border: 'border-2 border-slate-400',
+    text: 'text-slate-600',
+    shadow: 'shadow-lg shadow-slate-200'
   },
   rare: {
     bg: 'bg-gradient-to-br from-blue-100 to-blue-200',
-    border: 'rarity-border-rare',
-    text: 'text-rarity-rare'
+    border: 'border-2 border-blue-500',
+    text: 'text-blue-600',
+    shadow: 'shadow-lg shadow-blue-200'
   },
   legendary: {
     bg: 'bg-gradient-to-br from-yellow-100 to-orange-200',
-    border: 'rarity-border-legendary',
-    text: 'text-rarity-legendary'
+    border: 'border-2 border-amber-500',
+    text: 'text-amber-600',
+    shadow: 'shadow-lg shadow-amber-200'
   },
   mythic: {
     bg: 'bg-gradient-to-br from-purple-100 to-pink-200',
-    border: 'rarity-border-mythic',
-    text: 'text-rarity-mythic'
+    border: 'border-2 border-violet-500',
+    text: 'text-violet-600',
+    shadow: 'shadow-lg shadow-violet-200'
   }
 };
 
@@ -41,7 +45,7 @@ export function CollectibleCard({ card, quantity, onClick, className = '' }: Col
       onClick={onClick}
     >
       <div className="card-inner">
-        <div className={`card-front ${config.bg} ${config.border} p-4 h-full flex flex-col justify-between`}>
+        <div className={`card-front ${config.bg} ${config.border} ${config.shadow} p-4 h-full flex flex-col justify-between`}>
           <div>
             <div className="aspect-square bg-white rounded-lg mb-3 overflow-hidden">
               <img 
@@ -62,7 +66,7 @@ export function CollectibleCard({ card, quantity, onClick, className = '' }: Col
           )}
         </div>
         
-        <div className={`card-back ${config.bg} ${config.border} p-4 h-full flex flex-col justify-center`}>
+        <div className={`card-back ${config.bg} ${config.border} ${config.shadow} p-4 h-full flex flex-col justify-center`}>
           <div className="text-center">
             <h3 className="font-bold text-sm mb-2">{card.name}</h3>
             <p className="text-xs text-gray-600 mb-3">{card.description}</p>

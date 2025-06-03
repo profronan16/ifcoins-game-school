@@ -124,23 +124,3 @@
 .card-back {
   transform: rotateY(180deg);
 }
-
-.rarity-border-common {
-  @apply border-2 border-rarity-common;
-  box-shadow: 0 0 10px rgba(148, 163, 184, 0.3);
-}
-
-.rarity-border-rare {
-  @apply border-2 border-rarity-rare;
-  box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
-}
-
-.rarity-border-legendary {
-  @apply border-2 border-rarity-legendary;
-  box-shadow: 0 0 20px rgba(245, 158, 11, 0.5);
-}
-
-.rarity-border-mythic {
-  @apply border-2 border-rarity-mythic;
-  box-shadow: 0 0 25px rgba(139, 92, 246, 0.6);
-}
