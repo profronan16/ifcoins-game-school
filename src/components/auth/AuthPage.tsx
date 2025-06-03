@@ -97,7 +97,6 @@ export function AuthPage() {
         title: "Cadastro realizado com sucesso!",
         description: "Bem-vindo ao IFCoins! Você já pode começar a usar o sistema.",
       });
-      // Limpar o formulário após sucesso
       setSignupForm({
         name: '',
         email: '',
@@ -110,23 +109,23 @@ export function AuthPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-ifpr-green/10 to-ifpr-blue/10">
-        <Loader2 className="h-8 w-8 animate-spin text-ifpr-green" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-100 to-blue-100">
+        <Loader2 className="h-8 w-8 animate-spin text-green-600" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-ifpr-green/10 to-ifpr-blue/10 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-green-100 to-blue-100 flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="text-center space-y-4">
           <div className="flex justify-center">
-            <div className="bg-ifpr-green text-white rounded-full p-4">
+            <div className="bg-green-600 text-white rounded-full p-4">
               <Coins className="h-8 w-8" />
             </div>
           </div>
           <div>
-            <CardTitle className="text-3xl font-bold text-ifpr-green">IFCoins</CardTitle>
+            <CardTitle className="text-3xl font-bold text-green-600">IFCoins</CardTitle>
             <CardDescription className="text-lg mt-2">
               Sistema Educacional Gamificado do IFPR
             </CardDescription>
@@ -165,7 +164,7 @@ export function AuthPage() {
                 </div>
                 <Button 
                   type="submit" 
-                  className="w-full bg-ifpr-green hover:bg-ifpr-green-dark"
+                  className="w-full bg-green-600 hover:bg-green-700"
                   disabled={isLoading}
                 >
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -222,7 +221,7 @@ export function AuthPage() {
                 </div>
                 <Button 
                   type="submit" 
-                  className="w-full bg-ifpr-blue hover:bg-ifpr-blue-dark"
+                  className="w-full bg-blue-600 hover:bg-blue-700"
                   disabled={isLoading}
                 >
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
