@@ -40,7 +40,7 @@ const mockStudents = [
 ];
 
 export function ManageStudents() {
-  const { user } = useAuth();
+  const { profile, loading } = useAuth();
   const [students, setStudents] = useState(mockStudents);
   const [isCreating, setIsCreating] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -51,7 +51,43 @@ export function ManageStudents() {
     class: ''
   });
 
-  const canManageStudents = user?.role === 'admin' || user?.role === 'teacher';
+  console.log('ManageStudents - profile:', profile);
+  console.log('ManageStudents - loading:', loading);
+
+  if (loading) {
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-2xl font-bold mb-4">Carregando...</h2>
+        <p className="text-gray-600">Verificando permissões...</p>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-2xl font-bold mb-4">Erro de Autenticação</h2>
+        <p className="text-gray-600">Perfil não encontrado. Faça login novamente.</p>
+      </div>
+    );
+  }
+
+  // Permitir acesso para admin e teacher
+  const canManageStudents = profile.role === 'admin' || profile.role === 'teacher';
+  
+  console.log('ManageStudents - canManageStudents:', canManageStudents);
+  console.log('ManageStudents - profile.role:', profile.role);
+
+  if (!canManageStudents) {
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-2xl font-bold mb-4">Acesso Negado</h2>
+        <p className="text-gray-600">Apenas administradores e professores podem gerenciar estudantes.</p>
+        <p className="text-sm text-gray-500 mt-2">Seu perfil atual: {profile.role}</p>
+        <p className="text-xs text-gray-400 mt-1">Email: {profile.email}</p>
+      </div>
+    );
+  }
 
   const handleCreateStudent = () => {
     if (!newStudent.name || !newStudent.email || !newStudent.ra || !newStudent.class) {
@@ -95,15 +131,6 @@ export function ManageStudents() {
     student.class.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (!canManageStudents) {
-    return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold mb-4">Acesso Negado</h2>
-        <p className="text-gray-600">Apenas administradores e professores podem gerenciar estudantes.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -111,6 +138,9 @@ export function ManageStudents() {
           <h1 className="text-3xl font-bold text-gray-900">Gerenciar Estudantes</h1>
           <p className="text-gray-600 mt-1">
             Cadastre e gerencie estudantes do sistema
+          </p>
+          <p className="text-sm text-green-600 mt-2">
+            ✓ Acesso autorizado como {profile.role}
           </p>
         </div>
         <Button onClick={() => setIsCreating(true)} className="flex items-center gap-2">
@@ -227,7 +257,7 @@ export function ManageStudents() {
                       <Button variant="ghost" size="sm">
                         <Mail className="h-4 w-4" />
                       </Button>
-                      {user?.role === 'admin' && (
+                      {profile.role === 'admin' && (
                         <Button variant="ghost" size="sm" onClick={() => handleDeleteStudent(student.uid)}>
                           <Trash2 className="h-4 w-4 text-red-500" />
                         </Button>

@@ -7,11 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, Coins } from 'lucide-react';
+import { Loader2, Coins, AlertCircle } from 'lucide-react';
 
 export function AuthPage() {
   const { signIn, signUp, loading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   
   const [loginForm, setLoginForm] = useState({
     email: '',
@@ -44,9 +45,21 @@ export function AuthPage() {
       
       if (error) {
         console.error('Erro no login:', error);
+        let errorMessage = "Credenciais inválidas";
+        
+        if (error.message?.includes('Invalid login credentials')) {
+          errorMessage = "Email ou senha incorretos";
+        } else if (error.message?.includes('Email not confirmed')) {
+          errorMessage = "Email não confirmado. Verifique sua caixa de entrada";
+        } else if (error.message?.includes('Too many requests')) {
+          errorMessage = "Muitas tentativas. Tente novamente em alguns minutos";
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
         toast({
           title: "Erro no login",
-          description: error.message || "Credenciais inválidas",
+          description: errorMessage,
           variant: "destructive",
         });
       } else {
@@ -68,50 +81,87 @@ export function AuthPage() {
     }
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent, isRetry = false) => {
     e.preventDefault();
-    if (!signupForm.name || !signupForm.email || !signupForm.password) {
-      toast({
-        title: "Erro",
-        description: "Preencha todos os campos",
-        variant: "destructive",
-      });
-      return;
-    }
+    
+    if (!isRetry) {
+      if (!signupForm.name || !signupForm.email || !signupForm.password) {
+        toast({
+          title: "Erro",
+          description: "Preencha todos os campos",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    if (signupForm.password !== signupForm.confirmPassword) {
-      toast({
-        title: "Erro",
-        description: "As senhas não conferem",
-        variant: "destructive",
-      });
-      return;
-    }
+      if (signupForm.password !== signupForm.confirmPassword) {
+        toast({
+          title: "Erro",
+          description: "As senhas não conferem",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    if (signupForm.password.length < 6) {
-      toast({
-        title: "Erro",
-        description: "A senha deve ter pelo menos 6 caracteres",
-        variant: "destructive",
-      });
-      return;
+      if (signupForm.password.length < 6) {
+        toast({
+          title: "Erro",
+          description: "A senha deve ter pelo menos 6 caracteres",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     setIsLoading(true);
-    console.log('Tentando cadastrar:', signupForm.email, 'nome:', signupForm.name);
+    console.log('Tentando cadastrar:', signupForm.email, 'nome:', signupForm.name, 'tentativa:', retryCount + 1);
     
     try {
       const { error } = await signUp(signupForm.email, signupForm.password, signupForm.name);
       
       if (error) {
         console.error('Erro no cadastro:', error);
+        
+        // Se for erro de timeout e ainda não tentou muito, retry automaticamente
+        if ((error.message?.includes('timeout') || error.status === 504) && retryCount < 2) {
+          console.log('Erro de timeout, tentando novamente...');
+          setRetryCount(prev => prev + 1);
+          
+          toast({
+            title: "Tentando novamente...",
+            description: `Conexão lenta. Tentativa ${retryCount + 2} de 3.`,
+          });
+          
+          // Retry após 2 segundos
+          setTimeout(() => {
+            handleSignup(e, true);
+          }, 2000);
+          
+          return;
+        }
+        
+        let errorMessage = "Erro ao criar conta";
+        
+        if (error.message?.includes('User already registered')) {
+          errorMessage = "Este email já está cadastrado. Tente fazer login";
+        } else if (error.message?.includes('Invalid email')) {
+          errorMessage = "Email inválido";
+        } else if (error.message?.includes('Weak password')) {
+          errorMessage = "Senha muito fraca. Use pelo menos 6 caracteres";
+        } else if (error.message?.includes('timeout') || error.status === 504) {
+          errorMessage = "Timeout na conexão. Tente novamente em alguns minutos";
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
         toast({
           title: "Erro no cadastro",
-          description: error.message || "Erro ao criar conta",
+          description: errorMessage,
           variant: "destructive",
         });
       } else {
         console.log('Cadastro realizado com sucesso');
+        setRetryCount(0); // Reset retry count on success
         toast({
           title: "Cadastro realizado com sucesso!",
           description: "Bem-vindo ao IFCoins! Você já pode fazer login.",
@@ -247,13 +297,21 @@ export function AuthPage() {
                     required
                   />
                 </div>
+                
+                {retryCount > 0 && (
+                  <div className="flex items-center gap-2 text-amber-600 text-sm">
+                    <AlertCircle className="h-4 w-4" />
+                    <span>Tentativa {retryCount + 1} de 3 - Conexão lenta</span>
+                  </div>
+                )}
+                
                 <Button 
                   type="submit" 
                   className="w-full bg-blue-600 hover:bg-blue-700"
                   disabled={isLoading}
                 >
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Cadastrar
+                  {isLoading ? (retryCount > 0 ? `Tentando novamente...` : 'Cadastrando...') : 'Cadastrar'}
                 </Button>
               </form>
             </TabsContent>
