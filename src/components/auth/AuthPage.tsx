@@ -7,12 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, Coins, AlertCircle } from 'lucide-react';
+import { Loader2, Coins, AlertCircle, Clock } from 'lucide-react';
 
 export function AuthPage() {
   const { signIn, signUp, loading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [cooldownTime, setCooldownTime] = useState(0);
   
   const [loginForm, setLoginForm] = useState({
     email: '',
@@ -25,6 +26,16 @@ export function AuthPage() {
     password: '',
     confirmPassword: '',
   });
+
+  // Cooldown timer
+  React.useEffect(() => {
+    if (cooldownTime > 0) {
+      const timer = setTimeout(() => {
+        setCooldownTime(cooldownTime - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cooldownTime]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +63,10 @@ export function AuthPage() {
         } else if (error.message?.includes('Email not confirmed')) {
           errorMessage = "Email não confirmado. Verifique sua caixa de entrada";
         } else if (error.message?.includes('Too many requests')) {
-          errorMessage = "Muitas tentativas. Tente novamente em alguns minutos";
+          errorMessage = "Muitas tentativas. Aguarde alguns minutos antes de tentar novamente";
+          setCooldownTime(60); // 1 minuto de cooldown
+        } else if (error.message?.includes('timeout') || error.status === 504) {
+          errorMessage = "Conexão lenta. Tente novamente em alguns segundos";
         } else if (error.message) {
           errorMessage = error.message;
         }
@@ -83,6 +97,16 @@ export function AuthPage() {
 
   const handleSignup = async (e: React.FormEvent, isRetry = false) => {
     e.preventDefault();
+    
+    // Verificar cooldown
+    if (cooldownTime > 0) {
+      toast({
+        title: "Aguarde",
+        description: `Aguarde ${cooldownTime} segundos antes de tentar novamente`,
+        variant: "destructive",
+      });
+      return;
+    }
     
     if (!isRetry) {
       if (!signupForm.name || !signupForm.email || !signupForm.password) {
@@ -122,23 +146,37 @@ export function AuthPage() {
       if (error) {
         console.error('Erro no cadastro:', error);
         
-        // Se for erro de timeout e ainda não tentou muito, retry automaticamente
-        if ((error.message?.includes('timeout') || error.status === 504) && retryCount < 2) {
-          console.log('Erro de timeout, tentando novamente...');
-          setRetryCount(prev => prev + 1);
+        // Rate limit de email
+        if (error.message?.includes('email rate limit') || error.status === 429) {
+          setRetryCount(0);
+          setCooldownTime(300); // 5 minutos de cooldown
+          toast({
+            title: "Limite de emails excedido",
+            description: "Muitos emails foram enviados. Aguarde 5 minutos antes de tentar novamente.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        // Timeout - retry automático apenas 1 vez
+        if ((error.message?.includes('timeout') || error.status === 504) && retryCount === 0) {
+          console.log('Timeout detectado, tentando novamente em 5 segundos...');
+          setRetryCount(1);
           
           toast({
-            title: "Tentando novamente...",
-            description: `Conexão lenta. Tentativa ${retryCount + 2} de 3.`,
+            title: "Conexão lenta",
+            description: "Tentando novamente em 5 segundos...",
           });
           
-          // Retry após 2 segundos
           setTimeout(() => {
             handleSignup(e, true);
-          }, 2000);
+          }, 5000);
           
           return;
         }
+        
+        // Reset retry count
+        setRetryCount(0);
         
         let errorMessage = "Erro ao criar conta";
         
@@ -149,7 +187,7 @@ export function AuthPage() {
         } else if (error.message?.includes('Weak password')) {
           errorMessage = "Senha muito fraca. Use pelo menos 6 caracteres";
         } else if (error.message?.includes('timeout') || error.status === 504) {
-          errorMessage = "Timeout na conexão. Tente novamente em alguns minutos";
+          errorMessage = "Conexão muito lenta. Tente novamente mais tarde";
         } else if (error.message) {
           errorMessage = error.message;
         }
@@ -161,7 +199,7 @@ export function AuthPage() {
         });
       } else {
         console.log('Cadastro realizado com sucesso');
-        setRetryCount(0); // Reset retry count on success
+        setRetryCount(0);
         toast({
           title: "Cadastro realizado com sucesso!",
           description: "Bem-vindo ao IFCoins! Você já pode fazer login.",
@@ -175,6 +213,7 @@ export function AuthPage() {
       }
     } catch (err) {
       console.error('Erro inesperado no cadastro:', err);
+      setRetryCount(0);
       toast({
         title: "Erro no cadastro",
         description: "Erro inesperado. Tente novamente.",
@@ -210,6 +249,17 @@ export function AuthPage() {
           </div>
         </CardHeader>
         <CardContent>
+          {cooldownTime > 0 && (
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex items-center gap-2 text-amber-800">
+                <Clock className="h-4 w-4" />
+                <span className="text-sm font-medium">
+                  Aguarde {Math.floor(cooldownTime / 60)}:{(cooldownTime % 60).toString().padStart(2, '0')} para tentar novamente
+                </span>
+              </div>
+            </div>
+          )}
+          
           <Tabs defaultValue="login" className="space-y-4">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Entrar</TabsTrigger>
@@ -227,6 +277,7 @@ export function AuthPage() {
                     onChange={(e) => setLoginForm({...loginForm, email: e.target.value})}
                     placeholder="seu.email@ifpr.edu.br"
                     required
+                    disabled={isLoading || cooldownTime > 0}
                   />
                 </div>
                 <div className="space-y-2">
@@ -238,12 +289,13 @@ export function AuthPage() {
                     onChange={(e) => setLoginForm({...loginForm, password: e.target.value})}
                     placeholder="••••••••"
                     required
+                    disabled={isLoading || cooldownTime > 0}
                   />
                 </div>
                 <Button 
                   type="submit" 
                   className="w-full bg-green-600 hover:bg-green-700"
-                  disabled={isLoading}
+                  disabled={isLoading || cooldownTime > 0}
                 >
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Entrar
@@ -261,6 +313,7 @@ export function AuthPage() {
                     onChange={(e) => setSignupForm({...signupForm, name: e.target.value})}
                     placeholder="João da Silva"
                     required
+                    disabled={isLoading || cooldownTime > 0}
                   />
                 </div>
                 <div className="space-y-2">
@@ -272,6 +325,7 @@ export function AuthPage() {
                     onChange={(e) => setSignupForm({...signupForm, email: e.target.value})}
                     placeholder="seu.email@ifpr.edu.br"
                     required
+                    disabled={isLoading || cooldownTime > 0}
                   />
                 </div>
                 <div className="space-y-2">
@@ -284,6 +338,7 @@ export function AuthPage() {
                     placeholder="Mínimo 6 caracteres"
                     required
                     minLength={6}
+                    disabled={isLoading || cooldownTime > 0}
                   />
                 </div>
                 <div className="space-y-2">
@@ -295,23 +350,24 @@ export function AuthPage() {
                     onChange={(e) => setSignupForm({...signupForm, confirmPassword: e.target.value})}
                     placeholder="Confirme sua senha"
                     required
+                    disabled={isLoading || cooldownTime > 0}
                   />
                 </div>
                 
                 {retryCount > 0 && (
-                  <div className="flex items-center gap-2 text-amber-600 text-sm">
+                  <div className="flex items-center gap-2 text-blue-600 text-sm">
                     <AlertCircle className="h-4 w-4" />
-                    <span>Tentativa {retryCount + 1} de 3 - Conexão lenta</span>
+                    <span>Tentando reconectar...</span>
                   </div>
                 )}
                 
                 <Button 
                   type="submit" 
                   className="w-full bg-blue-600 hover:bg-blue-700"
-                  disabled={isLoading}
+                  disabled={isLoading || cooldownTime > 0}
                 >
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {isLoading ? (retryCount > 0 ? `Tentando novamente...` : 'Cadastrando...') : 'Cadastrar'}
+                  {isLoading ? (retryCount > 0 ? 'Reconectando...' : 'Cadastrando...') : 'Cadastrar'}
                 </Button>
               </form>
             </TabsContent>
