@@ -1,0 +1,267 @@
+
+import React, { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { toast } from '@/hooks/use-toast';
+import { Loader2, Coins, AlertCircle, CheckCircle } from 'lucide-react';
+
+export function RegistrationForm() {
+  const { signUp } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  });
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    
+    if (!form.name.trim()) {
+      newErrors.name = 'Nome é obrigatório';
+    } else if (form.name.trim().length < 2) {
+      newErrors.name = 'Nome deve ter pelo menos 2 caracteres';
+    }
+    
+    if (!form.email.trim()) {
+      newErrors.email = 'Email é obrigatório';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      newErrors.email = 'Email inválido';
+    }
+    
+    if (!form.password) {
+      newErrors.password = 'Senha é obrigatória';
+    } else if (form.password.length < 6) {
+      newErrors.password = 'Senha deve ter pelo menos 6 caracteres';
+    }
+    
+    if (!form.confirmPassword) {
+      newErrors.confirmPassword = 'Confirme sua senha';
+    } else if (form.password !== form.confirmPassword) {
+      newErrors.confirmPassword = 'Senhas não conferem';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsLoading(true);
+    console.log('Iniciando cadastro...');
+    
+    try {
+      const { error } = await signUp(form.email, form.password, form.name);
+      
+      if (error) {
+        console.error('Erro no cadastro:', error);
+        
+        let errorMessage = "Erro ao criar conta";
+        
+        if (error.message?.includes('User already registered')) {
+          errorMessage = "Este email já está cadastrado. Tente fazer login";
+        } else if (error.message?.includes('Invalid email')) {
+          errorMessage = "Email inválido";
+        } else if (error.message?.includes('Weak password')) {
+          errorMessage = "Senha muito fraca. Use pelo menos 6 caracteres";
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
+        toast({
+          title: "Erro no cadastro",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      } else {
+        console.log('Cadastro realizado com sucesso');
+        setSuccess(true);
+        toast({
+          title: "Cadastro realizado com sucesso!",
+          description: "Bem-vindo ao IFCoins! Você já pode fazer login.",
+        });
+        
+        // Limpar formulário
+        setForm({
+          name: '',
+          email: '',
+          password: '',
+          confirmPassword: '',
+        });
+        setErrors({});
+      }
+    } catch (err) {
+      console.error('Erro inesperado no cadastro:', err);
+      toast({
+        title: "Erro no cadastro",
+        description: "Erro inesperado. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateField = (field: string, value: string) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  if (success) {
+    return (
+      <Card className="w-full max-w-md mx-auto">
+        <CardContent className="pt-6">
+          <div className="text-center space-y-4">
+            <CheckCircle className="h-12 w-12 text-green-600 mx-auto" />
+            <h3 className="text-lg font-semibold text-green-600">
+              Cadastro realizado com sucesso!
+            </h3>
+            <p className="text-gray-600">
+              Sua conta foi criada. Você já pode fazer login.
+            </p>
+            <Button 
+              onClick={() => setSuccess(false)}
+              className="w-full"
+            >
+              Fazer outro cadastro
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="w-full max-w-md mx-auto">
+      <CardHeader className="text-center">
+        <div className="flex justify-center mb-4">
+          <div className="bg-blue-600 text-white rounded-full p-4">
+            <Coins className="h-8 w-8" />
+          </div>
+        </div>
+        <CardTitle className="text-2xl font-bold text-blue-600">
+          Cadastro - IFCoins
+        </CardTitle>
+        <CardDescription>
+          Crie sua conta no sistema IFCoins
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Nome Completo</Label>
+            <Input
+              id="name"
+              value={form.name}
+              onChange={(e) => updateField('name', e.target.value)}
+              placeholder="João da Silva"
+              disabled={isLoading}
+              className={errors.name ? 'border-red-500' : ''}
+            />
+            {errors.name && (
+              <p className="text-sm text-red-500 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                {errors.name}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={form.email}
+              onChange={(e) => updateField('email', e.target.value)}
+              placeholder="seu.email@ifpr.edu.br"
+              disabled={isLoading}
+              className={errors.email ? 'border-red-500' : ''}
+            />
+            {errors.email && (
+              <p className="text-sm text-red-500 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                {errors.email}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="password">Senha</Label>
+            <Input
+              id="password"
+              type="password"
+              value={form.password}
+              onChange={(e) => updateField('password', e.target.value)}
+              placeholder="Mínimo 6 caracteres"
+              disabled={isLoading}
+              className={errors.password ? 'border-red-500' : ''}
+            />
+            {errors.password && (
+              <p className="text-sm text-red-500 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                {errors.password}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirmar Senha</Label>
+            <Input
+              id="confirmPassword"
+              type="password"
+              value={form.confirmPassword}
+              onChange={(e) => updateField('confirmPassword', e.target.value)}
+              placeholder="Confirme sua senha"
+              disabled={isLoading}
+              className={errors.confirmPassword ? 'border-red-500' : ''}
+            />
+            {errors.confirmPassword && (
+              <p className="text-sm text-red-500 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                {errors.confirmPassword}
+              </p>
+            )}
+          </div>
+          
+          <Button 
+            type="submit" 
+            className="w-full bg-blue-600 hover:bg-blue-700"
+            disabled={isLoading}
+          >
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isLoading ? 'Cadastrando...' : 'Cadastrar'}
+          </Button>
+        </form>
+        
+        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+          <div className="text-sm text-gray-600 space-y-2">
+            <h4 className="font-medium text-gray-800">Tipos de conta:</h4>
+            <ul className="space-y-1 text-xs">
+              <li><strong>Estudante:</strong> @estudantes.ifpr.edu.br</li>
+              <li><strong>Professor:</strong> @ifpr.edu.br</li>
+              <li><strong>Admin:</strong> paulocauan39@gmail.com</li>
+            </ul>
+            <p className="text-xs text-gray-500 mt-2">
+              O tipo de conta é definido automaticamente pelo email.
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

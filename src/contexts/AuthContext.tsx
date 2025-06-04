@@ -23,9 +23,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId: string, retryCount = 0) => {
+  const fetchProfile = async (userId: string) => {
     try {
-      console.log('Fetching profile for user:', userId, 'retry:', retryCount);
+      console.log('Buscando perfil para usuário:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -33,30 +33,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single();
       
       if (error) {
-        console.error('Error fetching profile:', error);
-        
-        // Se não encontrou o perfil e é a primeira tentativa, aguarda um pouco e tenta novamente
-        if (error.code === 'PGRST116' && retryCount < 3) {
-          console.log('Profile not found, retrying in 2 seconds...');
-          setTimeout(() => {
-            fetchProfile(userId, retryCount + 1);
-          }, 2000);
-          return;
-        }
+        console.error('Erro ao buscar perfil:', error);
         return;
       }
       
-      console.log('Profile fetched successfully:', data);
+      console.log('Perfil encontrado:', data);
       setProfile(data);
     } catch (error) {
-      console.error('Error fetching profile:', error);
-      
-      // Retry em caso de erro de rede
-      if (retryCount < 2) {
-        setTimeout(() => {
-          fetchProfile(userId, retryCount + 1);
-        }, 3000);
-      }
+      console.error('Erro inesperado ao buscar perfil:', error);
     }
   };
 
@@ -69,10 +53,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email);
+        console.log('Mudança de estado auth:', event, session?.user?.email);
         
         if (!mounted) return;
         
@@ -80,12 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Pequeno delay para garantir que o trigger do banco executou
-          setTimeout(() => {
-            if (mounted) {
-              fetchProfile(session.user.id);
-            }
-          }, 1000);
+          await fetchProfile(session.user.id);
         } else {
           setProfile(null);
         }
@@ -94,18 +72,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    // Check for existing session
     const initializeAuth = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Error getting session:', error);
-          setLoading(false);
-          return;
-        }
-        
-        console.log('Initial session:', session?.user?.email);
+        const { data: { session } } = await supabase.auth.getSession();
         
         if (!mounted) return;
         
@@ -118,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         setLoading(false);
       } catch (error) {
-        console.error('Error initializing auth:', error);
+        console.error('Erro ao inicializar auth:', error);
         setLoading(false);
       }
     };
@@ -133,36 +102,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      console.log('Attempting sign in for:', email);
+      console.log('Tentando login para:', email);
       
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: email.trim().toLowerCase(),
         password,
       });
       
-      console.log('Sign in result:', { error, user: data?.user?.email });
-      
       if (error) {
-        console.error('Sign in error:', error);
+        console.error('Erro no login:', error);
         return { error };
       }
       
       return { error: null };
     } catch (error) {
-      console.error('Unexpected sign in error:', error);
+      console.error('Erro inesperado no login:', error);
       return { error };
     }
   };
 
   const signUp = async (email: string, password: string, name: string) => {
     try {
-      console.log('Attempting sign up for:', email, 'with name:', name);
+      console.log('Tentando cadastro para:', email, 'nome:', name);
       
-      const redirectUrl = `${window.location.origin}/`;
-      
-      // Determinar o role baseado no email
+      // Determinar role baseado no email
       let role: 'student' | 'teacher' | 'admin' = 'student';
-      
       const emailLower = email.trim().toLowerCase();
       
       if (emailLower.includes('@estudantes.ifpr.edu.br')) {
@@ -171,17 +135,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role = 'teacher';
       } else if (emailLower === 'paulocauan39@gmail.com') {
         role = 'admin';
-      } else {
-        role = 'student';
       }
       
-      console.log('Determined role:', role, 'for email:', emailLower);
+      console.log('Role determinado:', role);
       
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email: emailLower,
         password,
         options: {
-          emailRedirectTo: redirectUrl,
           data: {
             name: name.trim(),
             role: role,
@@ -189,52 +150,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
       });
       
-      console.log('Sign up result:', { error, user: data?.user?.email });
-      
       if (error) {
-        console.error('Sign up error:', error);
+        console.error('Erro no cadastro:', error);
         return { error };
-      }
-      
-      // Para desenvolvimento, fazer login automático se não houver confirmação de email
-      if (data?.user && !data?.user?.email_confirmed_at) {
-        console.log('User created but email not confirmed, attempting auto sign in for testing...');
-        
-        // Pequeno delay para permitir que o trigger execute
-        setTimeout(async () => {
-          try {
-            const { error: signInError } = await supabase.auth.signInWithPassword({
-              email: emailLower,
-              password,
-            });
-            
-            if (signInError) {
-              console.warn('Auto sign in failed:', signInError);
-            } else {
-              console.log('Auto sign in successful');
-            }
-          } catch (autoSignInError) {
-            console.warn('Auto sign in error:', autoSignInError);
-          }
-        }, 2000);
       }
       
       return { error: null };
     } catch (error) {
-      console.error('Unexpected sign up error:', error);
+      console.error('Erro inesperado no cadastro:', error);
       return { error };
     }
   };
 
   const signOut = async () => {
     try {
-      console.log('Signing out...');
       await supabase.auth.signOut();
       setProfile(null);
       setUser(null);
       setSession(null);
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error('Erro ao fazer logout:', error);
     }
   };
 

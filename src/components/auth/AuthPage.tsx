@@ -7,49 +7,26 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, Coins, AlertCircle, Clock, CheckCircle } from 'lucide-react';
+import { Loader2, Coins, AlertCircle } from 'lucide-react';
+import { RegistrationForm } from './RegistrationForm';
 
 export function AuthPage() {
-  const { signIn, signUp, loading } = useAuth();
+  const { signIn, loading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [cooldownTime, setCooldownTime] = useState(0);
-  const [lastSuccessfulAction, setLastSuccessfulAction] = useState<string | null>(null);
   
   const [loginForm, setLoginForm] = useState({
     email: '',
     password: '',
   });
-  
-  const [signupForm, setSignupForm] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-  });
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-
-  // Cooldown timer
-  React.useEffect(() => {
-    if (cooldownTime > 0) {
-      const timer = setTimeout(() => {
-        setCooldownTime(cooldownTime - 1);
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [cooldownTime]);
-
-  const validateEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
 
   const validateLoginForm = (): boolean => {
     const errors: Record<string, string> = {};
     
     if (!loginForm.email.trim()) {
       errors.email = 'Email é obrigatório';
-    } else if (!validateEmail(loginForm.email)) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginForm.email)) {
       errors.email = 'Email inválido';
     }
     
@@ -61,48 +38,8 @@ export function AuthPage() {
     return Object.keys(errors).length === 0;
   };
 
-  const validateSignupForm = (): boolean => {
-    const errors: Record<string, string> = {};
-    
-    if (!signupForm.name.trim()) {
-      errors.name = 'Nome é obrigatório';
-    } else if (signupForm.name.trim().length < 2) {
-      errors.name = 'Nome deve ter pelo menos 2 caracteres';
-    }
-    
-    if (!signupForm.email.trim()) {
-      errors.email = 'Email é obrigatório';
-    } else if (!validateEmail(signupForm.email)) {
-      errors.email = 'Email inválido';
-    }
-    
-    if (!signupForm.password) {
-      errors.password = 'Senha é obrigatória';
-    } else if (signupForm.password.length < 6) {
-      errors.password = 'Senha deve ter pelo menos 6 caracteres';
-    }
-    
-    if (!signupForm.confirmPassword) {
-      errors.confirmPassword = 'Confirme sua senha';
-    } else if (signupForm.password !== signupForm.confirmPassword) {
-      errors.confirmPassword = 'Senhas não conferem';
-    }
-    
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (cooldownTime > 0) {
-      toast({
-        title: "Aguarde",
-        description: `Aguarde ${cooldownTime} segundos antes de tentar novamente`,
-        variant: "destructive",
-      });
-      return;
-    }
 
     if (!validateLoginForm()) {
       return;
@@ -122,12 +59,6 @@ export function AuthPage() {
           errorMessage = "Email ou senha incorretos";
         } else if (error.message?.includes('Email not confirmed')) {
           errorMessage = "Email não confirmado. Verifique sua caixa de entrada";
-        } else if (error.message?.includes('Too many requests') || error.status === 429) {
-          errorMessage = "Muitas tentativas. Aguarde alguns minutos";
-          setCooldownTime(120);
-        } else if (error.message?.includes('timeout') || error.status === 504) {
-          errorMessage = "Conexão lenta. Tente novamente em alguns segundos";
-          setCooldownTime(30);
         } else if (error.message) {
           errorMessage = error.message;
         }
@@ -139,13 +70,11 @@ export function AuthPage() {
         });
       } else {
         console.log('Login realizado com sucesso');
-        setLastSuccessfulAction('Login realizado com sucesso!');
         toast({
           title: "Sucesso",
           description: "Login realizado com sucesso!",
         });
         
-        // Limpar formulário
         setLoginForm({ email: '', password: '' });
         setFormErrors({});
       }
@@ -153,83 +82,6 @@ export function AuthPage() {
       console.error('Erro inesperado no login:', err);
       toast({
         title: "Erro no login",
-        description: "Erro inesperado. Tente novamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (cooldownTime > 0) {
-      toast({
-        title: "Aguarde",
-        description: `Aguarde ${cooldownTime} segundos antes de tentar novamente`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!validateSignupForm()) {
-      return;
-    }
-
-    setIsLoading(true);
-    console.log('Tentando cadastrar:', signupForm.email, 'nome:', signupForm.name);
-    
-    try {
-      const { error } = await signUp(signupForm.email, signupForm.password, signupForm.name);
-      
-      if (error) {
-        console.error('Erro no cadastro:', error);
-        
-        let errorMessage = "Erro ao criar conta";
-        
-        if (error.message?.includes('email rate limit') || error.status === 429 || error.code === 'over_email_send_rate_limit') {
-          errorMessage = "Limite de emails excedido. Aguarde 10 minutos antes de tentar novamente";
-          setCooldownTime(600);
-        } else if (error.message?.includes('User already registered') || error.message?.includes('already been registered')) {
-          errorMessage = "Este email já está cadastrado. Tente fazer login";
-        } else if (error.message?.includes('Invalid email')) {
-          errorMessage = "Email inválido";
-        } else if (error.message?.includes('Weak password')) {
-          errorMessage = "Senha muito fraca. Use pelo menos 6 caracteres";
-        } else if (error.message?.includes('timeout') || error.status === 504) {
-          errorMessage = "Conexão lenta. Tente novamente em alguns segundos";
-          setCooldownTime(60);
-        } else if (error.message) {
-          errorMessage = error.message;
-        }
-        
-        toast({
-          title: "Erro no cadastro",
-          description: errorMessage,
-          variant: "destructive",
-        });
-      } else {
-        console.log('Cadastro realizado com sucesso');
-        setLastSuccessfulAction('Conta criada com sucesso! Você pode fazer login agora.');
-        toast({
-          title: "Cadastro realizado com sucesso!",
-          description: "Bem-vindo ao IFCoins! Você já pode fazer login.",
-        });
-        
-        // Limpar formulário
-        setSignupForm({
-          name: '',
-          email: '',
-          password: '',
-          confirmPassword: '',
-        });
-        setFormErrors({});
-      }
-    } catch (err) {
-      console.error('Erro inesperado no cadastro:', err);
-      toast({
-        title: "Erro no cadastro",
         description: "Erro inesperado. Tente novamente.",
         variant: "destructive",
       });
@@ -266,26 +118,6 @@ export function AuthPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {lastSuccessfulAction && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-              <div className="flex items-center gap-2 text-green-800">
-                <CheckCircle className="h-4 w-4" />
-                <span className="text-sm font-medium">{lastSuccessfulAction}</span>
-              </div>
-            </div>
-          )}
-
-          {cooldownTime > 0 && (
-            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <div className="flex items-center gap-2 text-amber-800">
-                <Clock className="h-4 w-4" />
-                <span className="text-sm font-medium">
-                  Aguarde {Math.floor(cooldownTime / 60)}:{(cooldownTime % 60).toString().padStart(2, '0')} para tentar novamente
-                </span>
-              </div>
-            </div>
-          )}
-          
           <Tabs defaultValue="login" className="space-y-4">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Entrar</TabsTrigger>
@@ -307,7 +139,7 @@ export function AuthPage() {
                       }
                     }}
                     placeholder="seu.email@ifpr.edu.br"
-                    disabled={isLoading || cooldownTime > 0}
+                    disabled={isLoading}
                     className={formErrors.email ? 'border-red-500' : ''}
                   />
                   {formErrors.email && (
@@ -330,7 +162,7 @@ export function AuthPage() {
                       }
                     }}
                     placeholder="••••••••"
-                    disabled={isLoading || cooldownTime > 0}
+                    disabled={isLoading}
                     className={formErrors.password ? 'border-red-500' : ''}
                   />
                   {formErrors.password && (
@@ -343,7 +175,7 @@ export function AuthPage() {
                 <Button 
                   type="submit" 
                   className="w-full bg-green-600 hover:bg-green-700"
-                  disabled={isLoading || cooldownTime > 0}
+                  disabled={isLoading}
                 >
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Entrar
@@ -352,108 +184,7 @@ export function AuthPage() {
             </TabsContent>
             
             <TabsContent value="signup" className="space-y-4">
-              <form onSubmit={handleSignup} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nome Completo</Label>
-                  <Input
-                    id="name"
-                    value={signupForm.name}
-                    onChange={(e) => {
-                      setSignupForm({...signupForm, name: e.target.value});
-                      if (formErrors.name) {
-                        setFormErrors({...formErrors, name: ''});
-                      }
-                    }}
-                    placeholder="João da Silva"
-                    disabled={isLoading || cooldownTime > 0}
-                    className={formErrors.name ? 'border-red-500' : ''}
-                  />
-                  {formErrors.name && (
-                    <p className="text-sm text-red-500 flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      {formErrors.name}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
-                  <Input
-                    id="signup-email"
-                    type="email"
-                    value={signupForm.email}
-                    onChange={(e) => {
-                      setSignupForm({...signupForm, email: e.target.value});
-                      if (formErrors.email) {
-                        setFormErrors({...formErrors, email: ''});
-                      }
-                    }}
-                    placeholder="seu.email@ifpr.edu.br"
-                    disabled={isLoading || cooldownTime > 0}
-                    className={formErrors.email ? 'border-red-500' : ''}
-                  />
-                  {formErrors.email && (
-                    <p className="text-sm text-red-500 flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      {formErrors.email}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Senha</Label>
-                  <Input
-                    id="signup-password"
-                    type="password"
-                    value={signupForm.password}
-                    onChange={(e) => {
-                      setSignupForm({...signupForm, password: e.target.value});
-                      if (formErrors.password) {
-                        setFormErrors({...formErrors, password: ''});
-                      }
-                    }}
-                    placeholder="Mínimo 6 caracteres"
-                    disabled={isLoading || cooldownTime > 0}
-                    className={formErrors.password ? 'border-red-500' : ''}
-                  />
-                  {formErrors.password && (
-                    <p className="text-sm text-red-500 flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      {formErrors.password}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirm-password">Confirmar Senha</Label>
-                  <Input
-                    id="confirm-password"
-                    type="password"
-                    value={signupForm.confirmPassword}
-                    onChange={(e) => {
-                      setSignupForm({...signupForm, confirmPassword: e.target.value});
-                      if (formErrors.confirmPassword) {
-                        setFormErrors({...formErrors, confirmPassword: ''});
-                      }
-                    }}
-                    placeholder="Confirme sua senha"
-                    disabled={isLoading || cooldownTime > 0}
-                    className={formErrors.confirmPassword ? 'border-red-500' : ''}
-                  />
-                  {formErrors.confirmPassword && (
-                    <p className="text-sm text-red-500 flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      {formErrors.confirmPassword}
-                    </p>
-                  )}
-                </div>
-                
-                <Button 
-                  type="submit" 
-                  className="w-full bg-blue-600 hover:bg-blue-700"
-                  disabled={isLoading || cooldownTime > 0}
-                >
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {isLoading ? 'Cadastrando...' : 'Cadastrar'}
-                </Button>
-              </form>
+              <RegistrationForm />
             </TabsContent>
           </Tabs>
           
