@@ -7,13 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, Coins, AlertCircle, Clock } from 'lucide-react';
+import { Loader2, Coins, AlertCircle, Clock, CheckCircle } from 'lucide-react';
 
 export function AuthPage() {
   const { signIn, signUp, loading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
   const [cooldownTime, setCooldownTime] = useState(0);
+  const [lastSuccessfulAction, setLastSuccessfulAction] = useState<string | null>(null);
   
   const [loginForm, setLoginForm] = useState({
     email: '',
@@ -27,6 +27,8 @@ export function AuthPage() {
     confirmPassword: '',
   });
 
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
   // Cooldown timer
   React.useEffect(() => {
     if (cooldownTime > 0) {
@@ -37,14 +39,72 @@ export function AuthPage() {
     }
   }, [cooldownTime]);
 
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validateLoginForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    
+    if (!loginForm.email.trim()) {
+      errors.email = 'Email é obrigatório';
+    } else if (!validateEmail(loginForm.email)) {
+      errors.email = 'Email inválido';
+    }
+    
+    if (!loginForm.password) {
+      errors.password = 'Senha é obrigatória';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateSignupForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    
+    if (!signupForm.name.trim()) {
+      errors.name = 'Nome é obrigatório';
+    } else if (signupForm.name.trim().length < 2) {
+      errors.name = 'Nome deve ter pelo menos 2 caracteres';
+    }
+    
+    if (!signupForm.email.trim()) {
+      errors.email = 'Email é obrigatório';
+    } else if (!validateEmail(signupForm.email)) {
+      errors.email = 'Email inválido';
+    }
+    
+    if (!signupForm.password) {
+      errors.password = 'Senha é obrigatória';
+    } else if (signupForm.password.length < 6) {
+      errors.password = 'Senha deve ter pelo menos 6 caracteres';
+    }
+    
+    if (!signupForm.confirmPassword) {
+      errors.confirmPassword = 'Confirme sua senha';
+    } else if (signupForm.password !== signupForm.confirmPassword) {
+      errors.confirmPassword = 'Senhas não conferem';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!loginForm.email || !loginForm.password) {
+    
+    if (cooldownTime > 0) {
       toast({
-        title: "Erro",
-        description: "Preencha todos os campos",
+        title: "Aguarde",
+        description: `Aguarde ${cooldownTime} segundos antes de tentar novamente`,
         variant: "destructive",
       });
+      return;
+    }
+
+    if (!validateLoginForm()) {
       return;
     }
 
@@ -62,11 +122,12 @@ export function AuthPage() {
           errorMessage = "Email ou senha incorretos";
         } else if (error.message?.includes('Email not confirmed')) {
           errorMessage = "Email não confirmado. Verifique sua caixa de entrada";
-        } else if (error.message?.includes('Too many requests')) {
-          errorMessage = "Muitas tentativas. Aguarde alguns minutos antes de tentar novamente";
-          setCooldownTime(60); // 1 minuto de cooldown
+        } else if (error.message?.includes('Too many requests') || error.status === 429) {
+          errorMessage = "Muitas tentativas. Aguarde alguns minutos";
+          setCooldownTime(120);
         } else if (error.message?.includes('timeout') || error.status === 504) {
           errorMessage = "Conexão lenta. Tente novamente em alguns segundos";
+          setCooldownTime(30);
         } else if (error.message) {
           errorMessage = error.message;
         }
@@ -78,10 +139,15 @@ export function AuthPage() {
         });
       } else {
         console.log('Login realizado com sucesso');
+        setLastSuccessfulAction('Login realizado com sucesso!');
         toast({
           title: "Sucesso",
           description: "Login realizado com sucesso!",
         });
+        
+        // Limpar formulário
+        setLoginForm({ email: '', password: '' });
+        setFormErrors({});
       }
     } catch (err) {
       console.error('Erro inesperado no login:', err);
@@ -95,10 +161,9 @@ export function AuthPage() {
     }
   };
 
-  const handleSignup = async (e: React.FormEvent, isRetry = false) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Verificar cooldown
     if (cooldownTime > 0) {
       toast({
         title: "Aguarde",
@@ -107,38 +172,13 @@ export function AuthPage() {
       });
       return;
     }
-    
-    if (!isRetry) {
-      if (!signupForm.name || !signupForm.email || !signupForm.password) {
-        toast({
-          title: "Erro",
-          description: "Preencha todos os campos",
-          variant: "destructive",
-        });
-        return;
-      }
 
-      if (signupForm.password !== signupForm.confirmPassword) {
-        toast({
-          title: "Erro",
-          description: "As senhas não conferem",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (signupForm.password.length < 6) {
-        toast({
-          title: "Erro",
-          description: "A senha deve ter pelo menos 6 caracteres",
-          variant: "destructive",
-        });
-        return;
-      }
+    if (!validateSignupForm()) {
+      return;
     }
 
     setIsLoading(true);
-    console.log('Tentando cadastrar:', signupForm.email, 'nome:', signupForm.name, 'tentativa:', retryCount + 1);
+    console.log('Tentando cadastrar:', signupForm.email, 'nome:', signupForm.name);
     
     try {
       const { error } = await signUp(signupForm.email, signupForm.password, signupForm.name);
@@ -146,48 +186,20 @@ export function AuthPage() {
       if (error) {
         console.error('Erro no cadastro:', error);
         
-        // Rate limit de email
-        if (error.message?.includes('email rate limit') || error.status === 429) {
-          setRetryCount(0);
-          setCooldownTime(300); // 5 minutos de cooldown
-          toast({
-            title: "Limite de emails excedido",
-            description: "Muitos emails foram enviados. Aguarde 5 minutos antes de tentar novamente.",
-            variant: "destructive",
-          });
-          return;
-        }
-        
-        // Timeout - retry automático apenas 1 vez
-        if ((error.message?.includes('timeout') || error.status === 504) && retryCount === 0) {
-          console.log('Timeout detectado, tentando novamente em 5 segundos...');
-          setRetryCount(1);
-          
-          toast({
-            title: "Conexão lenta",
-            description: "Tentando novamente em 5 segundos...",
-          });
-          
-          setTimeout(() => {
-            handleSignup(e, true);
-          }, 5000);
-          
-          return;
-        }
-        
-        // Reset retry count
-        setRetryCount(0);
-        
         let errorMessage = "Erro ao criar conta";
         
-        if (error.message?.includes('User already registered')) {
+        if (error.message?.includes('email rate limit') || error.status === 429 || error.code === 'over_email_send_rate_limit') {
+          errorMessage = "Limite de emails excedido. Aguarde 10 minutos antes de tentar novamente";
+          setCooldownTime(600);
+        } else if (error.message?.includes('User already registered') || error.message?.includes('already been registered')) {
           errorMessage = "Este email já está cadastrado. Tente fazer login";
         } else if (error.message?.includes('Invalid email')) {
           errorMessage = "Email inválido";
         } else if (error.message?.includes('Weak password')) {
           errorMessage = "Senha muito fraca. Use pelo menos 6 caracteres";
         } else if (error.message?.includes('timeout') || error.status === 504) {
-          errorMessage = "Conexão muito lenta. Tente novamente mais tarde";
+          errorMessage = "Conexão lenta. Tente novamente em alguns segundos";
+          setCooldownTime(60);
         } else if (error.message) {
           errorMessage = error.message;
         }
@@ -199,21 +211,23 @@ export function AuthPage() {
         });
       } else {
         console.log('Cadastro realizado com sucesso');
-        setRetryCount(0);
+        setLastSuccessfulAction('Conta criada com sucesso! Você pode fazer login agora.');
         toast({
           title: "Cadastro realizado com sucesso!",
           description: "Bem-vindo ao IFCoins! Você já pode fazer login.",
         });
+        
+        // Limpar formulário
         setSignupForm({
           name: '',
           email: '',
           password: '',
           confirmPassword: '',
         });
+        setFormErrors({});
       }
     } catch (err) {
       console.error('Erro inesperado no cadastro:', err);
-      setRetryCount(0);
       toast({
         title: "Erro no cadastro",
         description: "Erro inesperado. Tente novamente.",
@@ -227,7 +241,10 @@ export function AuthPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-100 to-blue-100">
-        <Loader2 className="h-8 w-8 animate-spin text-green-600" />
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-green-600" />
+          <p className="text-green-600">Carregando...</p>
+        </div>
       </div>
     );
   }
@@ -249,6 +266,15 @@ export function AuthPage() {
           </div>
         </CardHeader>
         <CardContent>
+          {lastSuccessfulAction && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center gap-2 text-green-800">
+                <CheckCircle className="h-4 w-4" />
+                <span className="text-sm font-medium">{lastSuccessfulAction}</span>
+              </div>
+            </div>
+          )}
+
           {cooldownTime > 0 && (
             <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
               <div className="flex items-center gap-2 text-amber-800">
@@ -274,11 +300,22 @@ export function AuthPage() {
                     id="email"
                     type="email"
                     value={loginForm.email}
-                    onChange={(e) => setLoginForm({...loginForm, email: e.target.value})}
+                    onChange={(e) => {
+                      setLoginForm({...loginForm, email: e.target.value});
+                      if (formErrors.email) {
+                        setFormErrors({...formErrors, email: ''});
+                      }
+                    }}
                     placeholder="seu.email@ifpr.edu.br"
-                    required
                     disabled={isLoading || cooldownTime > 0}
+                    className={formErrors.email ? 'border-red-500' : ''}
                   />
+                  {formErrors.email && (
+                    <p className="text-sm text-red-500 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {formErrors.email}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password">Senha</Label>
@@ -286,11 +323,22 @@ export function AuthPage() {
                     id="password"
                     type="password"
                     value={loginForm.password}
-                    onChange={(e) => setLoginForm({...loginForm, password: e.target.value})}
+                    onChange={(e) => {
+                      setLoginForm({...loginForm, password: e.target.value});
+                      if (formErrors.password) {
+                        setFormErrors({...formErrors, password: ''});
+                      }
+                    }}
                     placeholder="••••••••"
-                    required
                     disabled={isLoading || cooldownTime > 0}
+                    className={formErrors.password ? 'border-red-500' : ''}
                   />
+                  {formErrors.password && (
+                    <p className="text-sm text-red-500 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {formErrors.password}
+                    </p>
+                  )}
                 </div>
                 <Button 
                   type="submit" 
@@ -310,11 +358,22 @@ export function AuthPage() {
                   <Input
                     id="name"
                     value={signupForm.name}
-                    onChange={(e) => setSignupForm({...signupForm, name: e.target.value})}
+                    onChange={(e) => {
+                      setSignupForm({...signupForm, name: e.target.value});
+                      if (formErrors.name) {
+                        setFormErrors({...formErrors, name: ''});
+                      }
+                    }}
                     placeholder="João da Silva"
-                    required
                     disabled={isLoading || cooldownTime > 0}
+                    className={formErrors.name ? 'border-red-500' : ''}
                   />
+                  {formErrors.name && (
+                    <p className="text-sm text-red-500 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {formErrors.name}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-email">Email</Label>
@@ -322,11 +381,22 @@ export function AuthPage() {
                     id="signup-email"
                     type="email"
                     value={signupForm.email}
-                    onChange={(e) => setSignupForm({...signupForm, email: e.target.value})}
+                    onChange={(e) => {
+                      setSignupForm({...signupForm, email: e.target.value});
+                      if (formErrors.email) {
+                        setFormErrors({...formErrors, email: ''});
+                      }
+                    }}
                     placeholder="seu.email@ifpr.edu.br"
-                    required
                     disabled={isLoading || cooldownTime > 0}
+                    className={formErrors.email ? 'border-red-500' : ''}
                   />
+                  {formErrors.email && (
+                    <p className="text-sm text-red-500 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {formErrors.email}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-password">Senha</Label>
@@ -334,12 +404,22 @@ export function AuthPage() {
                     id="signup-password"
                     type="password"
                     value={signupForm.password}
-                    onChange={(e) => setSignupForm({...signupForm, password: e.target.value})}
+                    onChange={(e) => {
+                      setSignupForm({...signupForm, password: e.target.value});
+                      if (formErrors.password) {
+                        setFormErrors({...formErrors, password: ''});
+                      }
+                    }}
                     placeholder="Mínimo 6 caracteres"
-                    required
-                    minLength={6}
                     disabled={isLoading || cooldownTime > 0}
+                    className={formErrors.password ? 'border-red-500' : ''}
                   />
+                  {formErrors.password && (
+                    <p className="text-sm text-red-500 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {formErrors.password}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="confirm-password">Confirmar Senha</Label>
@@ -347,19 +427,23 @@ export function AuthPage() {
                     id="confirm-password"
                     type="password"
                     value={signupForm.confirmPassword}
-                    onChange={(e) => setSignupForm({...signupForm, confirmPassword: e.target.value})}
+                    onChange={(e) => {
+                      setSignupForm({...signupForm, confirmPassword: e.target.value});
+                      if (formErrors.confirmPassword) {
+                        setFormErrors({...formErrors, confirmPassword: ''});
+                      }
+                    }}
                     placeholder="Confirme sua senha"
-                    required
                     disabled={isLoading || cooldownTime > 0}
+                    className={formErrors.confirmPassword ? 'border-red-500' : ''}
                   />
+                  {formErrors.confirmPassword && (
+                    <p className="text-sm text-red-500 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {formErrors.confirmPassword}
+                    </p>
+                  )}
                 </div>
-                
-                {retryCount > 0 && (
-                  <div className="flex items-center gap-2 text-blue-600 text-sm">
-                    <AlertCircle className="h-4 w-4" />
-                    <span>Tentando reconectar...</span>
-                  </div>
-                )}
                 
                 <Button 
                   type="submit" 
@@ -367,7 +451,7 @@ export function AuthPage() {
                   disabled={isLoading || cooldownTime > 0}
                 >
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {isLoading ? (retryCount > 0 ? 'Reconectando...' : 'Cadastrando...') : 'Cadastrar'}
+                  {isLoading ? 'Cadastrando...' : 'Cadastrar'}
                 </Button>
               </form>
             </TabsContent>
