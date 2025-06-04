@@ -37,21 +37,35 @@ export function AuthPage() {
     }
 
     setIsLoading(true);
-    const { error } = await signIn(loginForm.email, loginForm.password);
+    console.log('Tentando fazer login com:', loginForm.email);
     
-    if (error) {
+    try {
+      const { error } = await signIn(loginForm.email, loginForm.password);
+      
+      if (error) {
+        console.error('Erro no login:', error);
+        toast({
+          title: "Erro no login",
+          description: error.message || "Credenciais inválidas",
+          variant: "destructive",
+        });
+      } else {
+        console.log('Login realizado com sucesso');
+        toast({
+          title: "Sucesso",
+          description: "Login realizado com sucesso!",
+        });
+      }
+    } catch (err) {
+      console.error('Erro inesperado no login:', err);
       toast({
         title: "Erro no login",
-        description: error.message,
+        description: "Erro inesperado. Tente novamente.",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Sucesso",
-        description: "Login realizado com sucesso!",
-      });
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -84,27 +98,41 @@ export function AuthPage() {
     }
 
     setIsLoading(true);
-    const { error } = await signUp(signupForm.email, signupForm.password, signupForm.name);
+    console.log('Tentando cadastrar:', signupForm.email, 'nome:', signupForm.name);
     
-    if (error) {
+    try {
+      const { error } = await signUp(signupForm.email, signupForm.password, signupForm.name);
+      
+      if (error) {
+        console.error('Erro no cadastro:', error);
+        toast({
+          title: "Erro no cadastro",
+          description: error.message || "Erro ao criar conta",
+          variant: "destructive",
+        });
+      } else {
+        console.log('Cadastro realizado com sucesso');
+        toast({
+          title: "Cadastro realizado com sucesso!",
+          description: "Bem-vindo ao IFCoins! Você já pode fazer login.",
+        });
+        setSignupForm({
+          name: '',
+          email: '',
+          password: '',
+          confirmPassword: '',
+        });
+      }
+    } catch (err) {
+      console.error('Erro inesperado no cadastro:', err);
       toast({
         title: "Erro no cadastro",
-        description: error.message,
+        description: "Erro inesperado. Tente novamente.",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Cadastro realizado com sucesso!",
-        description: "Bem-vindo ao IFCoins! Você já pode começar a usar o sistema.",
-      });
-      setSignupForm({
-        name: '',
-        email: '',
-        password: '',
-        confirmPassword: '',
-      });
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   if (loading) {
@@ -233,14 +261,14 @@ export function AuthPage() {
           
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
             <div className="text-sm text-gray-600 space-y-2">
-              <h4 className="font-medium text-gray-800">Tipos de Conta:</h4>
+              <h4 className="font-medium text-gray-800">Contas de Teste:</h4>
               <ul className="space-y-1">
-                <li><strong>Estudantes:</strong> Use emails @estudantes.ifpr.edu.br</li>
-                <li><strong>Professores:</strong> Use emails @ifpr.edu.br</li>
-                <li><strong>Administrador:</strong> paulocauan39@gmail.com</li>
+                <li><strong>Admin:</strong> paulocauan39@gmail.com</li>
+                <li><strong>Professor:</strong> professor@ifpr.edu.br</li>
+                <li><strong>Estudante:</strong> estudante@estudantes.ifpr.edu.br</li>
               </ul>
               <p className="text-xs text-gray-500 mt-2">
-                O tipo de conta é definido automaticamente pelo seu email.
+                Senha: qualquer (para testes). O tipo de conta é definido automaticamente pelo email.
               </p>
             </div>
           </div>

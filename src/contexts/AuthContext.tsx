@@ -24,6 +24,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = async (userId: string) => {
     try {
+      console.log('Fetching profile for user:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -34,6 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error('Error fetching profile:', error);
         return;
       }
+      console.log('Profile fetched:', data);
       setProfile(data);
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -77,14 +79,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    console.log('Attempting sign in for:', email);
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+    console.log('Sign in result:', { error });
     return { error };
   };
 
   const signUp = async (email: string, password: string, name: string) => {
+    console.log('Attempting sign up for:', email, 'with name:', name);
     const redirectUrl = `${window.location.origin}/`;
     
     // Determinar o role baseado no email
@@ -100,6 +105,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       role = 'student';
     }
     
+    console.log('Determined role:', role);
+    
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -111,10 +118,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
       },
     });
+    console.log('Sign up result:', { error });
     return { error };
   };
 
   const signOut = async () => {
+    console.log('Signing out...');
     await supabase.auth.signOut();
     setProfile(null);
   };

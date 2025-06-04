@@ -9,7 +9,7 @@ import { Settings as SettingsIcon, Save, RefreshCw, Database, Shield, Bell } fro
 import { toast } from '@/hooks/use-toast';
 
 export function Settings() {
-  const { user } = useAuth();
+  const { profile } = useAuth();
   const [settings, setSettings] = useState({
     siteName: 'IFCoins',
     maxCoinsPerHour: 10,
@@ -25,17 +25,30 @@ export function Settings() {
     maintenanceMode: false
   });
 
-  if (user?.role !== 'admin') {
+  console.log('Settings - profile:', profile);
+  console.log('Settings - profile role:', profile?.role);
+
+  if (!profile) {
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-2xl font-bold mb-4">Carregando...</h2>
+        <p className="text-gray-600">Verificando permissões...</p>
+      </div>
+    );
+  }
+
+  if (profile.role !== 'admin') {
     return (
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold mb-4">Acesso Negado</h2>
         <p className="text-gray-600">Apenas administradores podem acessar as configurações.</p>
+        <p className="text-sm text-gray-500 mt-2">Seu perfil atual: {profile.role}</p>
+        <p className="text-xs text-gray-400 mt-1">Email: {profile.email}</p>
       </div>
     );
   }
 
   const handleSaveSettings = () => {
-    // Aqui você salvaria as configurações no banco de dados
     toast({
       title: "Sucesso",
       description: "Configurações salvas com sucesso!",
@@ -55,6 +68,9 @@ export function Settings() {
         <h1 className="text-3xl font-bold text-gray-900">Configurações do Sistema</h1>
         <p className="text-gray-600 mt-1">
           Configure as opções gerais do sistema IFCoins
+        </p>
+        <p className="text-sm text-green-600 mt-2">
+          ✓ Acesso autorizado como administrador
         </p>
       </div>
 
@@ -114,11 +130,14 @@ export function Settings() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Probabilidades das Cartas</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Probabilidades de Raridade
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="common">Comum (%)</Label>
+              <Label htmlFor="common">Common (%)</Label>
               <Input
                 id="common"
                 type="number"
@@ -126,7 +145,7 @@ export function Settings() {
                 max="100"
                 value={settings.rarityProbabilities.common}
                 onChange={(e) => setSettings({
-                  ...settings,
+                  ...settings, 
                   rarityProbabilities: {
                     ...settings.rarityProbabilities,
                     common: parseInt(e.target.value)
@@ -135,7 +154,7 @@ export function Settings() {
               />
             </div>
             <div>
-              <Label htmlFor="rare">Rara (%)</Label>
+              <Label htmlFor="rare">Rare (%)</Label>
               <Input
                 id="rare"
                 type="number"
@@ -143,7 +162,7 @@ export function Settings() {
                 max="100"
                 value={settings.rarityProbabilities.rare}
                 onChange={(e) => setSettings({
-                  ...settings,
+                  ...settings, 
                   rarityProbabilities: {
                     ...settings.rarityProbabilities,
                     rare: parseInt(e.target.value)
@@ -152,7 +171,7 @@ export function Settings() {
               />
             </div>
             <div>
-              <Label htmlFor="legendary">Lendária (%)</Label>
+              <Label htmlFor="legendary">Legendary (%)</Label>
               <Input
                 id="legendary"
                 type="number"
@@ -160,7 +179,7 @@ export function Settings() {
                 max="100"
                 value={settings.rarityProbabilities.legendary}
                 onChange={(e) => setSettings({
-                  ...settings,
+                  ...settings, 
                   rarityProbabilities: {
                     ...settings.rarityProbabilities,
                     legendary: parseInt(e.target.value)
@@ -169,7 +188,7 @@ export function Settings() {
               />
             </div>
             <div>
-              <Label htmlFor="mythic">Mítica (%)</Label>
+              <Label htmlFor="mythic">Mythic (%)</Label>
               <Input
                 id="mythic"
                 type="number"
@@ -177,16 +196,13 @@ export function Settings() {
                 max="100"
                 value={settings.rarityProbabilities.mythic}
                 onChange={(e) => setSettings({
-                  ...settings,
+                  ...settings, 
                   rarityProbabilities: {
                     ...settings.rarityProbabilities,
                     mythic: parseInt(e.target.value)
                   }
                 })}
               />
-            </div>
-            <div className="text-sm text-gray-600">
-              Total: {Object.values(settings.rarityProbabilities).reduce((a, b) => a + b, 0)}%
             </div>
           </CardContent>
         </Card>
@@ -214,7 +230,7 @@ export function Settings() {
             <div className="flex items-center justify-between">
               <div>
                 <Label>Backup Automático</Label>
-                <p className="text-sm text-gray-600">Backup diário automático dos dados</p>
+                <p className="text-sm text-gray-600">Realizar backup diário automático</p>
               </div>
               <Button
                 variant={settings.autoBackup ? "default" : "outline"}
@@ -235,23 +251,21 @@ export function Settings() {
           </CardHeader>
           <CardContent className="space-y-4">
             <Button onClick={handleBackup} className="w-full flex items-center gap-2">
-              <Database className="h-4 w-4" />
-              Fazer Backup dos Dados
-            </Button>
-            <Button variant="outline" className="w-full flex items-center gap-2">
               <RefreshCw className="h-4 w-4" />
-              Restaurar Backup
+              Fazer Backup Agora
             </Button>
-            <Button variant="outline" className="w-full flex items-center gap-2">
-              <Shield className="h-4 w-4" />
-              Verificar Integridade
+            <Button variant="outline" className="w-full">
+              Exportar Dados do Sistema
+            </Button>
+            <Button variant="outline" className="w-full">
+              Limpar Logs Antigos
             </Button>
           </CardContent>
         </Card>
       </div>
 
       <div className="flex justify-end">
-        <Button onClick={handleSaveSettings} className="flex items-center gap-2">
+        <Button onClick={handleSaveSettings} className="flex items-center gap-2 bg-ifpr-green hover:bg-ifpr-green-dark">
           <Save className="h-4 w-4" />
           Salvar Configurações
         </Button>
