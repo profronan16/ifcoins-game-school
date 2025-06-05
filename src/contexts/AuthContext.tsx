@@ -1,8 +1,9 @@
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
 import { Profile } from '@/types/supabase';
+import { useAuthState } from '@/hooks/useAuthState';
+import { useAuthActions } from '@/hooks/useAuthActions';
 
 interface AuthContextType {
   user: User | null;
@@ -18,149 +19,14 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const fetchProfile = async (userId: string) => {
-    try {
-      console.log('Buscando perfil para usuário:', userId);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      
-      if (error) {
-        console.error('Erro ao buscar perfil:', error);
-        return;
-      }
-      
-      console.log('Perfil encontrado:', data);
-      setProfile(data);
-    } catch (error) {
-      console.error('Erro inesperado ao buscar perfil:', error);
-    }
-  };
-
-  const refreshProfile = async () => {
-    if (user?.id) {
-      await fetchProfile(user.id);
-    }
-  };
-
-  useEffect(() => {
-    let mounted = true;
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Mudança de estado auth:', event, session?.user?.email);
-        
-        if (!mounted) return;
-        
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          // Dar um tempo para o trigger do banco processar
-          setTimeout(() => {
-            if (mounted) {
-              fetchProfile(session.user.id);
-            }
-          }, 500);
-        } else {
-          setProfile(null);
-        }
-        
-        setLoading(false);
-      }
-    );
-
-    const initializeAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (!mounted) return;
-        
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          await fetchProfile(session.user.id);
-        }
-        
-        setLoading(false);
-      } catch (error) {
-        console.error('Erro ao inicializar auth:', error);
-        setLoading(false);
-      }
-    };
-
-    initializeAuth();
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  const signIn = async (email: string, password: string) => {
-    try {
-      console.log('Tentando login para:', email);
-      
-      const { error } = await supabase.auth.signInWithPassword({
-        email: email.trim().toLowerCase(),
-        password,
-      });
-      
-      if (error) {
-        console.error('Erro no login:', error);
-        return { error };
-      }
-      
-      return { error: null };
-    } catch (error) {
-      console.error('Erro inesperado no login:', error);
-      return { error };
-    }
-  };
-
-  const signUp = async (email: string, password: string, name: string) => {
-    try {
-      console.log('Tentando cadastro para:', email, 'nome:', name);
-      
-      const { error } = await supabase.auth.signUp({
-        email: email.trim().toLowerCase(),
-        password,
-        options: {
-          data: {
-            name: name.trim(),
-          },
-        },
-      });
-      
-      if (error) {
-        console.error('Erro no cadastro:', error);
-        return { error };
-      }
-      
-      return { error: null };
-    } catch (error) {
-      console.error('Erro inesperado no cadastro:', error);
-      return { error };
-    }
-  };
+  const { user, profile, session, loading, refreshProfile, setProfile, setUser, setSession } = useAuthState();
+  const { signIn, signUp, signOut: baseSignOut } = useAuthActions();
 
   const signOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      setProfile(null);
-      setUser(null);
-      setSession(null);
-    } catch (error) {
-      console.error('Erro ao fazer logout:', error);
-    }
+    await baseSignOut();
+    setProfile(null);
+    setUser(null);
+    setSession(null);
   };
 
   return (

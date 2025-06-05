@@ -4,98 +4,145 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Coins, Mail } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { Loader2, AlertCircle } from 'lucide-react';
 
 export function LoginForm() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const { signIn, loading } = useAuth();
+  const { signIn } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const [loginForm, setLoginForm] = useState({
+    email: '',
+    password: '',
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  const validateLoginForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    
+    if (!loginForm.email.trim()) {
+      errors.email = 'Email é obrigatório';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginForm.email)) {
+      errors.email = 'Email inválido';
+    }
+    
+    if (!loginForm.password) {
+      errors.password = 'Senha é obrigatória';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!validateLoginForm()) {
+      return;
+    }
+
+    setIsLoading(true);
+    console.log('Tentando fazer login com:', loginForm.email);
+    
     try {
-      const { error } = await signIn(email, password);
+      const { error } = await signIn(loginForm.email, loginForm.password);
+      
       if (error) {
+        console.error('Erro no login:', error);
+        let errorMessage = "Credenciais inválidas";
+        
+        if (error.message?.includes('Invalid login credentials')) {
+          errorMessage = "Email ou senha incorretos";
+        } else if (error.message?.includes('Email not confirmed')) {
+          errorMessage = "Email não confirmado. Verifique sua caixa de entrada";
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
         toast({
           title: "Erro no login",
-          description: error.message,
+          description: errorMessage,
           variant: "destructive",
         });
       } else {
+        console.log('Login realizado com sucesso');
         toast({
-          title: "Login realizado com sucesso!",
-          description: "Bem-vindo ao IFCoins",
+          title: "Sucesso",
+          description: "Login realizado com sucesso!",
         });
+        
+        setLoginForm({ email: '', password: '' });
+        setFormErrors({});
       }
-    } catch (error) {
+    } catch (err) {
+      console.error('Erro inesperado no login:', err);
       toast({
         title: "Erro no login",
-        description: "Credenciais inválidas. Tente novamente.",
+        description: "Erro inesperado. Tente novamente.",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-ifpr-green to-ifpr-blue flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="bg-ifpr-green text-white rounded-full p-4">
-              <Coins className="h-8 w-8" />
-            </div>
-          </div>
-          <CardTitle className="text-2xl font-bold text-ifpr-green">IFCoins</CardTitle>
-          <CardDescription>
-            Sistema Educacional Gamificado do IFPR
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="seu.email@ifpr.edu.br"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-              />
-            </div>
-            <Button 
-              type="submit" 
-              className="w-full bg-ifpr-green hover:bg-ifpr-green-dark"
-              disabled={loading}
-            >
-              {loading ? 'Entrando...' : 'Entrar'}
-            </Button>
-          </form>
-
-          <div className="mt-6 space-y-2 text-sm text-gray-600">
-            <p className="font-medium">Usuários de demonstração:</p>
-            <div className="text-xs space-y-1">
-              <p><strong>Admin:</strong> admin@ifpr.edu.br</p>
-              <p><strong>Professor:</strong> joao.santos@ifpr.edu.br</p>
-              <p><strong>Estudante:</strong> ana.costa@estudante.ifpr.edu.br</p>
-              <p className="text-gray-500">Senha: qualquer</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+    <form onSubmit={handleLogin} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="email">Email</Label>
+        <Input
+          id="email"
+          type="email"
+          value={loginForm.email}
+          onChange={(e) => {
+            setLoginForm({...loginForm, email: e.target.value});
+            if (formErrors.email) {
+              setFormErrors({...formErrors, email: ''});
+            }
+          }}
+          placeholder="seu.email@ifpr.edu.br"
+          disabled={isLoading}
+          className={formErrors.email ? 'border-red-500' : ''}
+        />
+        {formErrors.email && (
+          <p className="text-sm text-red-500 flex items-center gap-1">
+            <AlertCircle className="h-3 w-3" />
+            {formErrors.email}
+          </p>
+        )}
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="password">Senha</Label>
+        <Input
+          id="password"
+          type="password"
+          value={loginForm.password}
+          onChange={(e) => {
+            setLoginForm({...loginForm, password: e.target.value});
+            if (formErrors.password) {
+              setFormErrors({...formErrors, password: ''});
+            }
+          }}
+          placeholder="••••••••"
+          disabled={isLoading}
+          className={formErrors.password ? 'border-red-500' : ''}
+        />
+        {formErrors.password && (
+          <p className="text-sm text-red-500 flex items-center gap-1">
+            <AlertCircle className="h-3 w-3" />
+            {formErrors.password}
+          </p>
+        )}
+      </div>
+      <Button 
+        type="submit" 
+        className="w-full bg-green-600 hover:bg-green-700"
+        disabled={isLoading}
+      >
+        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        Entrar
+      </Button>
+    </form>
   );
 }
