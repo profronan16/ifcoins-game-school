@@ -1,96 +1,142 @@
 
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Trophy, Medal, Award, Coins, BookOpen } from 'lucide-react';
-import { CoinBalance } from '@/components/ui/coin-balance';
-
-const mockRankings = {
-  coins: [
-    { id: '1', name: 'Ana Costa', coins: 450, class: '3º INFO', avatar: '👩‍🎓' },
-    { id: '2', name: 'Pedro Silva', coins: 380, class: '2º INFO', avatar: '👨‍🎓' },
-    { id: '3', name: 'Maria Santos', coins: 320, class: '3º INFO', avatar: '👩‍🎓' },
-    { id: '4', name: 'João Oliveira', coins: 280, class: '1º INFO', avatar: '👨‍🎓' },
-    { id: '5', name: 'Carla Lima', coins: 250, class: '2º INFO', avatar: '👩‍🎓' },
-  ],
-  collection: [
-    { id: '1', name: 'Ana Costa', cardsCount: 45, uniqueCards: 38, class: '3º INFO', avatar: '👩‍🎓' },
-    { id: '2', name: 'Pedro Silva', cardsCount: 42, uniqueCards: 35, class: '2º INFO', avatar: '👨‍🎓' },
-    { id: '3', name: 'Maria Santos', cardsCount: 38, uniqueCards: 32, class: '3º INFO', avatar: '👩‍🎓' },
-    { id: '4', name: 'João Oliveira', cardsCount: 35, uniqueCards: 30, class: '1º INFO', avatar: '👨‍🎓' },
-    { id: '5', name: 'Carla Lima', cardsCount: 32, uniqueCards: 28, class: '2º INFO', avatar: '👩‍🎓' },
-  ],
-};
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Trophy, Medal, Award, Crown, Coins } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 export function Rankings() {
-  const [activeTab, setActiveTab] = useState<'coins' | 'collection'>('coins');
+  const { data: rankings, isLoading } = useQuery({
+    queryKey: ['rankings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('coins', { ascending: false })
+        .limit(50);
+      
+      if (error) throw error;
+      return data;
+    },
+  });
 
-  const getRankIcon = (position: number) => {
-    if (position === 1) return <Trophy className="h-6 w-6 text-yellow-500" />;
-    if (position === 2) return <Medal className="h-6 w-6 text-gray-400" />;
-    if (position === 3) return <Award className="h-6 w-6 text-amber-600" />;
-    return <span className="w-6 h-6 flex items-center justify-center font-bold text-gray-500">#{position}</span>;
+  const { data: cardRankings } = useQuery({
+    queryKey: ['card-rankings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('user_cards')
+        .select(`
+          user_id,
+          profiles(name, email, role),
+          total_cards:quantity
+        `)
+        .order('quantity', { ascending: false });
+      
+      if (error) throw error;
+      
+      // Agrupar por usuário e somar total de cartas
+      const userCardCounts = data.reduce((acc, item) => {
+        const userId = item.user_id;
+        if (!acc[userId]) {
+          acc[userId] = {
+            user: item.profiles,
+            totalCards: 0
+          };
+        }
+        acc[userId].totalCards += item.total_cards;
+        return acc;
+      }, {} as Record<string, any>);
+
+      return Object.values(userCardCounts)
+        .sort((a: any, b: any) => b.totalCards - a.totalCards)
+        .slice(0, 20);
+    },
+  });
+
+  const getPositionIcon = (position: number) => {
+    switch (position) {
+      case 1:
+        return <Crown className="h-6 w-6 text-yellow-500" />;
+      case 2:
+        return <Trophy className="h-6 w-6 text-gray-400" />;
+      case 3:
+        return <Medal className="h-6 w-6 text-amber-600" />;
+      default:
+        return <Award className="h-5 w-5 text-gray-500" />;
+    }
   };
+
+  const getRoleBadge = (role: string) => {
+    const variants = {
+      admin: 'destructive' as const,
+      teacher: 'default' as const,
+      student: 'secondary' as const,
+    };
+    
+    const labels = {
+      admin: 'Admin',
+      teacher: 'Professor',
+      student: 'Estudante',
+    };
+
+    return (
+      <Badge variant={variants[role as keyof typeof variants] || 'outline'}>
+        {labels[role as keyof typeof labels] || role}
+      </Badge>
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-2xl font-bold mb-4">Carregando rankings...</h2>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Rankings</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Rankings IFCoins</h1>
         <p className="text-gray-600 mt-1">
-          Confira os estudantes que mais se destacaram
+          Veja quem está no topo da classificação
         </p>
-      </div>
-
-      <div className="flex gap-2 bg-gray-100 p-1 rounded-lg w-fit">
-        <Button
-          variant={activeTab === 'coins' ? 'default' : 'ghost'}
-          size="sm"
-          onClick={() => setActiveTab('coins')}
-          className="flex items-center gap-2"
-        >
-          <Coins className="h-4 w-4" />
-          Mais IFCoins
-        </Button>
-        <Button
-          variant={activeTab === 'collection' ? 'default' : 'ghost'}
-          size="sm"
-          onClick={() => setActiveTab('collection')}
-          className="flex items-center gap-2"
-        >
-          <BookOpen className="h-4 w-4" />
-          Maior Coleção
-        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              {activeTab === 'coins' ? <Coins className="h-5 w-5 text-ifpr-green" /> : <BookOpen className="h-5 w-5 text-ifpr-blue" />}
-              {activeTab === 'coins' ? 'Top 5 - Mais IFCoins' : 'Top 5 - Maior Coleção'}
+              <Coins className="h-5 w-5 text-yellow-600" />
+              Ranking por IFCoins
             </CardTitle>
+            <CardDescription>
+              Usuários com mais moedas acumuladas
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {(activeTab === 'coins' ? mockRankings.coins : mockRankings.collection).map((student, index) => (
-                <div key={student.id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    {getRankIcon(index + 1)}
-                    <div className="text-2xl">{student.avatar}</div>
+            <div className="space-y-3">
+              {rankings?.map((user, index) => (
+                <div key={user.id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-bold text-gray-600 w-6">
+                      {index + 1}
+                    </span>
+                    {getPositionIcon(index + 1)}
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold">{student.name}</h3>
-                    <p className="text-sm text-gray-600">{student.class}</p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-medium">{user.name}</p>
+                      {getRoleBadge(user.role)}
+                    </div>
+                    <p className="text-sm text-gray-600">{user.email}</p>
                   </div>
                   <div className="text-right">
-                    {activeTab === 'coins' ? (
-                      <CoinBalance balance={student.coins} className="text-sm" />
-                    ) : (
-                      <div>
-                        <p className="font-bold text-ifpr-blue">{student.cardsCount} cartas</p>
-                        <p className="text-xs text-gray-600">{student.uniqueCards} únicas</p>
-                      </div>
-                    )}
+                    <p className="font-bold text-ifpr-green text-lg">
+                      {user.coins}
+                    </p>
+                    <p className="text-xs text-gray-500">IFCoins</p>
                   </div>
                 </div>
               ))}
@@ -100,30 +146,72 @@ export function Rankings() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Estatísticas Gerais</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-purple-600" />
+              Ranking por Cartas
+            </CardTitle>
+            <CardDescription>
+              Usuários com mais cartas na coleção
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center p-3 bg-ifpr-green/10 rounded-lg">
-                <span className="font-medium">Total de IFCoins em circulação</span>
-                <span className="font-bold text-ifpr-green">45.230</span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-ifpr-blue/10 rounded-lg">
-                <span className="font-medium">Cartas coletadas este mês</span>
-                <span className="font-bold text-ifpr-blue">892</span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-purple-100 rounded-lg">
-                <span className="font-medium">Trocas realizadas</span>
-                <span className="font-bold text-purple-600">156</span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-orange-100 rounded-lg">
-                <span className="font-medium">Estudantes ativos</span>
-                <span className="font-bold text-orange-600">1.247</span>
-              </div>
+            <div className="space-y-3">
+              {cardRankings?.map((item: any, index) => (
+                <div key={index} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-bold text-gray-600 w-6">
+                      {index + 1}
+                    </span>
+                    {getPositionIcon(index + 1)}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-medium">{item.user.name}</p>
+                      {getRoleBadge(item.user.role)}
+                    </div>
+                    <p className="text-sm text-gray-600">{item.user.email}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-purple-600 text-lg">
+                      {item.totalCards}
+                    </p>
+                    <p className="text-xs text-gray-500">Cartas</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Como Subir no Ranking</CardTitle>
+          <CardDescription>Dicas para ganhar mais IFCoins e cartas</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 bg-blue-50 rounded-lg">
+              <h3 className="font-semibold text-blue-800 mb-2">Participação nas Aulas</h3>
+              <p className="text-sm text-blue-700">
+                Seja ativo e participe das atividades. Professores podem dar até 50 moedas por participação.
+              </p>
+            </div>
+            <div className="p-4 bg-green-50 rounded-lg">
+              <h3 className="font-semibold text-green-800 mb-2">Compre Cartas</h3>
+              <p className="text-sm text-green-700">
+                Use suas moedas na loja para comprar cartas especiais e subir no ranking de coleção.
+              </p>
+            </div>
+            <div className="p-4 bg-purple-50 rounded-lg">
+              <h3 className="font-semibold text-purple-800 mb-2">Eventos Especiais</h3>
+              <p className="text-sm text-purple-700">
+                Participe de eventos do IFPR para ganhar multiplicadores de moedas.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

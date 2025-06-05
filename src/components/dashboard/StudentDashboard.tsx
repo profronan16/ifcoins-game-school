@@ -37,7 +37,49 @@ export function StudentDashboard({ onSectionChange }: StudentDashboardProps) {
     enabled: !!profile && profile.role === 'student',
   });
 
+  const { data: recentRewards } = useQuery({
+    queryKey: ['student-recent-rewards', profile?.id],
+    queryFn: async () => {
+      if (!profile) return [];
+      
+      const { data, error } = await supabase
+        .from('reward_logs')
+        .select(`
+          *,
+          teacher:profiles!reward_logs_teacher_id_fkey(name)
+        `)
+        .eq('student_id', profile.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile && profile.role === 'student',
+  });
+
+  const { data: userRanking } = useQuery({
+    queryKey: ['user-ranking', profile?.id],
+    queryFn: async () => {
+      if (!profile) return null;
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, coins')
+        .order('coins', { ascending: false });
+      
+      if (error) throw error;
+      
+      const position = data.findIndex(p => p.id === profile.id) + 1;
+      return { position, total: data.length };
+    },
+    enabled: !!profile && profile.role === 'student',
+  });
+
   if (!profile || profile.role !== 'student') return null;
+
+  const totalCards = userCards?.reduce((acc, card) => acc + card.quantity, 0) || 0;
+  const totalRewardCoins = recentRewards?.reduce((acc, reward) => acc + reward.coins, 0) || 0;
 
   return (
     <div className="space-y-6">
@@ -53,7 +95,7 @@ export function StudentDashboard({ onSectionChange }: StudentDashboardProps) {
         <CoinBalance balance={profile.coins} showAnimation />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => onSectionChange('shop')}>
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
@@ -74,7 +116,7 @@ export function StudentDashboard({ onSectionChange }: StudentDashboardProps) {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-gray-600">{userCards?.length || 0} cartas coletadas</p>
+            <p className="text-sm text-gray-600">{totalCards} cartas coletadas</p>
           </CardContent>
         </Card>
 
@@ -98,7 +140,107 @@ export function StudentDashboard({ onSectionChange }: StudentDashboardProps) {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-gray-600">Veja sua posição no ranking</p>
+            <p className="text-sm text-gray-600">
+              {userRanking ? `${userRanking.position}º de ${userRanking.total}` : 'Sua posição no ranking'}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5" />
+              Suas Cartas Recentes
+            </CardTitle>
+            <CardDescription>
+              Suas últimas cartas adquiridas
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin" />
+              </div>
+            ) : userCards && userCards.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {userCards.map((userCard) => (
+                  <div key={userCard.id} className="relative">
+                    <CollectibleCard
+                      card={{
+                        id: userCard.card.id,
+                        name: userCard.card.name,
+                        rarity: userCard.card.rarity,
+                        imageUrl: userCard.card.image_url || '',
+                        available: userCard.card.available,
+                        price: userCard.card.price,
+                        description: userCard.card.description
+                      }}
+                      quantity={userCard.quantity}
+                      className="h-32"
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">Você ainda não possui cartas</p>
+                <Button 
+                  className="mt-4 bg-ifpr-green hover:bg-ifpr-green-dark"
+                  onClick={() => onSectionChange('shop')}
+                >
+                  Ir para a Loja
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="h-5 w-5" />
+              Recompensas Recentes
+            </CardTitle>
+            <CardDescription>
+              IFCoins recebidos recentemente
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {recentRewards && recentRewards.length > 0 ? (
+                recentRewards.map((reward) => (
+                  <div key={reward.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">{reward.reason}</p>
+                      <p className="text-xs text-gray-600">por {reward.teacher.name}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-ifpr-green">+{reward.coins}</p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(reward.created_at).toLocaleDateString('pt-BR')}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-6">
+                  <p className="text-gray-600">Nenhuma recompensa recente</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Participe mais das atividades para ganhar IFCoins!
+                  </p>
+                </div>
+              )}
+            </div>
+            {recentRewards && recentRewards.length > 0 && (
+              <div className="mt-4 p-3 bg-ifpr-green/10 rounded-lg">
+                <p className="text-sm font-medium text-ifpr-green">
+                  Total recebido: {totalRewardCoins} IFCoins
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -106,66 +248,30 @@ export function StudentDashboard({ onSectionChange }: StudentDashboardProps) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5" />
-            Suas Cartas Recentes
-          </CardTitle>
-          <CardDescription>
-            Suas últimas cartas adquiridas
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin" />
-            </div>
-          ) : userCards && userCards.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {userCards.map((userCard) => (
-                <CollectibleCard
-                  key={userCard.id}
-                  card={{
-                    id: userCard.card.id,
-                    name: userCard.card.name,
-                    rarity: userCard.card.rarity,
-                    imageUrl: userCard.card.image_url || '',
-                    available: userCard.card.available,
-                    price: userCard.card.price,
-                    description: userCard.card.description
-                  }}
-                  quantity={userCard.quantity}
-                  className="h-48"
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">Você ainda não possui cartas</p>
-              <Button 
-                className="mt-4 bg-ifpr-green hover:bg-ifpr-green-dark"
-                onClick={() => onSectionChange('shop')}
-              >
-                Ir para a Loja
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Eventos Ativos
+            Como Ganhar Mais IFCoins
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="bg-gradient-to-r from-ifpr-green to-ifpr-blue text-white p-4 rounded-lg">
-            <h3 className="font-bold mb-2">🚀 Semana da Tecnologia</h3>
-            <p className="text-sm opacity-90 mb-2">
-              Participe das atividades e ganhe moedas em dobro!
-            </p>
-            <p className="text-xs opacity-75">1 a 7 de Junho • Multiplicador: 2x</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-lg">
+              <h3 className="font-bold mb-2">📚 Participe das Aulas</h3>
+              <p className="text-sm opacity-90">
+                Seja ativo, faça perguntas e participe das atividades. Professores podem dar até 50 IFCoins!
+              </p>
+            </div>
+            <div className="bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-lg">
+              <h3 className="font-bold mb-2">📝 Entregue Tarefas</h3>
+              <p className="text-sm opacity-90">
+                Cumpra prazos e faça trabalhos de qualidade para receber recompensas dos professores.
+              </p>
+            </div>
+            <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-4 rounded-lg">
+              <h3 className="font-bold mb-2">🏆 Eventos Especiais</h3>
+              <p className="text-sm opacity-90">
+                Participe de eventos do IFPR para ganhar bonificações especiais em IFCoins.
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>

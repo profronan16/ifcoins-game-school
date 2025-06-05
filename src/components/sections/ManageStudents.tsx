@@ -1,96 +1,50 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { User, Plus, Edit, Trash2, Mail, Search } from 'lucide-react';
+import { User, Plus, Mail, Search, Coins } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-
-const mockStudents = [
-  {
-    uid: 'student1',
-    name: 'Ana Costa',
-    email: 'ana.costa@estudante.ifpr.edu.br',
-    ra: '2024001',
-    class: '3º INFO',
-    coins: 150,
-    status: 'active'
-  },
-  {
-    uid: 'student2',
-    name: 'Pedro Silva',
-    email: 'pedro.silva@estudante.ifpr.edu.br',
-    ra: '2024002',
-    class: '2º INFO',
-    coins: 200,
-    status: 'active'
-  },
-  {
-    uid: 'student3',
-    name: 'Maria Santos',
-    email: 'maria.santos@estudante.ifpr.edu.br',
-    ra: '2024003',
-    class: '1º INFO',
-    coins: 80,
-    status: 'inactive'
-  }
-];
+import { supabase } from '@/integrations/supabase/client';
+import { Profile } from '@/types/supabase';
 
 export function ManageStudents() {
-  const { profile, loading } = useAuth();
-  const [students, setStudents] = useState(mockStudents);
-  const [isCreating, setIsCreating] = useState(false);
+  const { profile } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
-  const [newStudent, setNewStudent] = useState({
-    name: '',
-    email: '',
-    ra: '',
-    class: ''
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [coinsAmount, setCoinsAmount] = useState('');
+  const [reason, setReason] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const { data: users, refetch } = useQuery({
+    queryKey: ['manage-users'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data as Profile[];
+    },
+    enabled: !!profile && (profile.role === 'admin' || profile.role === 'teacher'),
   });
 
-  console.log('ManageStudents - profile:', profile);
-  console.log('ManageStudents - loading:', loading);
-
-  if (loading) {
-    return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold mb-4">Carregando...</h2>
-        <p className="text-gray-600">Verificando permissões...</p>
-      </div>
-    );
-  }
-
-  if (!profile) {
-    return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold mb-4">Erro de Autenticação</h2>
-        <p className="text-gray-600">Perfil não encontrado. Faça login novamente.</p>
-      </div>
-    );
-  }
-
-  // Permitir acesso para admin e teacher
-  const canManageStudents = profile.role === 'admin' || profile.role === 'teacher';
-  
-  console.log('ManageStudents - canManageStudents:', canManageStudents);
-  console.log('ManageStudents - profile.role:', profile.role);
-
-  if (!canManageStudents) {
+  if (!profile || (profile.role !== 'admin' && profile.role !== 'teacher')) {
     return (
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold mb-4">Acesso Negado</h2>
-        <p className="text-gray-600">Apenas administradores e professores podem gerenciar estudantes.</p>
-        <p className="text-sm text-gray-500 mt-2">Seu perfil atual: {profile.role}</p>
-        <p className="text-xs text-gray-400 mt-1">Email: {profile.email}</p>
+        <p className="text-gray-600">Apenas administradores e professores podem gerenciar usuários.</p>
       </div>
     );
   }
 
-  const handleCreateStudent = () => {
-    if (!newStudent.name || !newStudent.email || !newStudent.ra || !newStudent.class) {
+  const handleGiveCoins = async () => {
+    if (!selectedUserId || !coinsAmount || !reason) {
       toast({
         title: "Erro",
         description: "Preencha todos os campos obrigatórios",
@@ -99,107 +53,167 @@ export function ManageStudents() {
       return;
     }
 
-    const student = {
-      uid: Date.now().toString(),
-      ...newStudent,
-      coins: 0,
-      status: 'active'
-    };
+    const amount = parseInt(coinsAmount);
+    if (amount <= 0 || amount > (profile.role === 'admin' ? 1000 : 50)) {
+      toast({
+        title: "Quantidade inválida",
+        description: `Você pode dar entre 1 e ${profile.role === 'admin' ? 1000 : 50} moedas`,
+        variant: "destructive"
+      });
+      return;
+    }
 
-    setStudents([...students, student]);
-    setNewStudent({ name: '', email: '', ra: '', class: '' });
-    setIsCreating(false);
-    
-    toast({
-      title: "Sucesso",
-      description: "Estudante cadastrado com sucesso! Um email com instruções foi enviado.",
-    });
+    setLoading(true);
+
+    try {
+      // Atualizar moedas do usuário
+      const { error: updateError } = await supabase.rpc('update_user_coins', {
+        user_id_param: selectedUserId,
+        amount: amount
+      });
+
+      if (updateError) throw updateError;
+
+      // Registrar log da recompensa
+      const { error: logError } = await supabase
+        .from('reward_logs')
+        .insert({
+          teacher_id: profile.id,
+          student_id: selectedUserId,
+          coins: amount,
+          reason: reason
+        });
+
+      if (logError) throw logError;
+
+      const selectedUserName = users?.find(u => u.id === selectedUserId)?.name || 'Usuário';
+      
+      toast({
+        title: "Moedas entregues!",
+        description: `${amount} IFCoins foram dados para ${selectedUserName}`,
+      });
+
+      setSelectedUserId('');
+      setCoinsAmount('');
+      setReason('');
+      refetch();
+      
+    } catch (error) {
+      console.error('Erro ao dar moedas:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível dar as moedas",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeleteStudent = (studentId: string) => {
-    setStudents(students.filter(s => s.uid !== studentId));
-    toast({
-      title: "Sucesso",
-      description: "Estudante removido com sucesso!",
-    });
-  };
+  const filteredUsers = users?.filter(user =>
+    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.ra?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.class?.toLowerCase().includes(searchTerm.toLowerCase())
+  ) || [];
 
-  const filteredStudents = students.filter(student =>
-    student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.ra.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.class.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const stats = {
+    total: users?.length || 0,
+    students: users?.filter(u => u.role === 'student').length || 0,
+    teachers: users?.filter(u => u.role === 'teacher').length || 0,
+    admins: users?.filter(u => u.role === 'admin').length || 0,
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Gerenciar Estudantes</h1>
-          <p className="text-gray-600 mt-1">
-            Cadastre e gerencie estudantes do sistema
-          </p>
-          <p className="text-sm text-green-600 mt-2">
-            ✓ Acesso autorizado como {profile.role}
-          </p>
-        </div>
-        <Button onClick={() => setIsCreating(true)} className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          Cadastrar Estudante
-        </Button>
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Gerenciar Usuários</h1>
+        <p className="text-gray-600 mt-1">
+          Visualize e gerencie usuários do sistema
+        </p>
       </div>
 
-      {isCreating && (
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Total</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.total}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Estudantes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">{stats.students}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Professores</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{stats.teachers}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Administradores</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600">{stats.admins}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {profile.role === 'teacher' && (
         <Card>
           <CardHeader>
-            <CardTitle>Cadastrar Novo Estudante</CardTitle>
+            <CardTitle>Dar Moedas para Estudante</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <Label htmlFor="name">Nome Completo</Label>
+                <Label>Estudante</Label>
+                <select 
+                  className="w-full p-2 border rounded"
+                  value={selectedUserId}
+                  onChange={(e) => setSelectedUserId(e.target.value)}
+                >
+                  <option value="">Selecione um estudante</option>
+                  {users?.filter(u => u.role === 'student').map(user => (
+                    <option key={user.id} value={user.id}>
+                      {user.name} - {user.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label>Quantidade (1-50)</Label>
                 <Input
-                  id="name"
-                  value={newStudent.name}
-                  onChange={(e) => setNewStudent({...newStudent, name: e.target.value})}
-                  placeholder="Ex: João da Silva"
+                  type="number"
+                  min="1"
+                  max="50"
+                  value={coinsAmount}
+                  onChange={(e) => setCoinsAmount(e.target.value)}
+                  placeholder="5"
                 />
               </div>
               <div>
-                <Label htmlFor="email">Email Institucional</Label>
+                <Label>Motivo</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  value={newStudent.email}
-                  onChange={(e) => setNewStudent({...newStudent, email: e.target.value})}
-                  placeholder="joao.silva@estudante.ifpr.edu.br"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="ra">Registro Acadêmico (RA)</Label>
-                <Input
-                  id="ra"
-                  value={newStudent.ra}
-                  onChange={(e) => setNewStudent({...newStudent, ra: e.target.value})}
-                  placeholder="Ex: 2024001"
-                />
-              </div>
-              <div>
-                <Label htmlFor="class">Turma</Label>
-                <Input
-                  id="class"
-                  value={newStudent.class}
-                  onChange={(e) => setNewStudent({...newStudent, class: e.target.value})}
-                  placeholder="Ex: 3º INFO"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Boa participação"
                 />
               </div>
             </div>
-            <div className="flex gap-2">
-              <Button onClick={handleCreateStudent}>Cadastrar Estudante</Button>
-              <Button variant="outline" onClick={() => setIsCreating(false)}>Cancelar</Button>
-            </div>
+            <Button onClick={handleGiveCoins} disabled={loading} className="bg-ifpr-green">
+              <Coins className="h-4 w-4 mr-2" />
+              {loading ? 'Dando...' : 'Dar Moedas'}
+            </Button>
           </CardContent>
         </Card>
       )}
@@ -207,11 +221,11 @@ export function ManageStudents() {
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle>Estudantes Cadastrados</CardTitle>
+            <CardTitle>Usuários Cadastrados</CardTitle>
             <div className="flex items-center gap-2">
               <Search className="h-4 w-4 text-gray-500" />
               <Input
-                placeholder="Buscar estudantes..."
+                placeholder="Buscar usuários..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-64"
@@ -225,44 +239,34 @@ export function ManageStudents() {
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>RA</TableHead>
-                <TableHead>Turma</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>RA/Classe</TableHead>
                 <TableHead>IFCoins</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Ações</TableHead>
+                <TableHead>Cadastro</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredStudents.map((student) => (
-                <TableRow key={student.uid}>
-                  <TableCell className="font-medium">{student.name}</TableCell>
-                  <TableCell>{student.email}</TableCell>
-                  <TableCell>{student.ra}</TableCell>
-                  <TableCell>{student.class}</TableCell>
-                  <TableCell>{student.coins}</TableCell>
+              {filteredUsers.map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell className="font-medium">{user.name}</TableCell>
+                  <TableCell>{user.email}</TableCell>
                   <TableCell>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      student.status === 'active' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
+                      user.role === 'admin' ? 'bg-purple-100 text-purple-800' :
+                      user.role === 'teacher' ? 'bg-green-100 text-green-800' :
+                      'bg-blue-100 text-blue-800'
                     }`}>
-                      {student.status === 'active' ? 'Ativo' : 'Inativo'}
+                      {user.role === 'admin' ? 'Admin' : 
+                       user.role === 'teacher' ? 'Professor' : 'Estudante'}
                     </span>
                   </TableCell>
                   <TableCell>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="sm">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Mail className="h-4 w-4" />
-                      </Button>
-                      {profile.role === 'admin' && (
-                        <Button variant="ghost" size="sm" onClick={() => handleDeleteStudent(student.uid)}>
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
-                      )}
-                    </div>
+                    {user.ra && `RA: ${user.ra}`}
+                    {user.class && ` - ${user.class}`}
+                  </TableCell>
+                  <TableCell className="font-bold text-ifpr-green">{user.coins}</TableCell>
+                  <TableCell>
+                    {new Date(user.created_at).toLocaleDateString('pt-BR')}
                   </TableCell>
                 </TableRow>
               ))}

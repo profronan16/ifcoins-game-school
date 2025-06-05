@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,42 +9,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { BookOpen, Plus, Edit, Trash2, Upload, Search } from 'lucide-react';
+import { BookOpen, Plus, Edit, Trash2, Search } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-
-const mockCards = [
-  {
-    id: 'card1',
-    name: 'Laboratório de Química',
-    description: 'Local onde os experimentos científicos acontecem',
-    rarity: 'common',
-    price: 50,
-    available: true,
-    copies: 100
-  },
-  {
-    id: 'card2',
-    name: 'Professor Especialista',
-    description: 'Docente com anos de experiência e conhecimento',
-    rarity: 'rare',
-    price: 150,
-    available: true,
-    copies: 25
-  },
-  {
-    id: 'card3',
-    name: 'Diploma de Excelência',
-    description: 'Reconhecimento pelos melhores estudantes',
-    rarity: 'legendary',
-    price: 500,
-    available: true,
-    copies: 5
-  }
-];
+import { supabase } from '@/integrations/supabase/client';
 
 export function ManageCards() {
   const { profile } = useAuth();
-  const [cards, setCards] = useState(mockCards);
   const [isCreating, setIsCreating] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [newCard, setNewCard] = useState({
@@ -51,32 +22,33 @@ export function ManageCards() {
     description: '',
     rarity: 'common',
     price: 50,
-    copies: 10
+    copies_available: 10
   });
 
-  console.log('ManageCards - profile:', profile);
+  const { data: cards, isLoading, refetch } = useQuery({
+    queryKey: ['admin-cards'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('cards')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: profile?.role === 'admin',
+  });
 
-  if (!profile) {
-    return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold mb-4">Carregando...</h2>
-        <p className="text-gray-600">Verificando permissões...</p>
-      </div>
-    );
-  }
-
-  if (profile.role !== 'admin') {
+  if (!profile || profile.role !== 'admin') {
     return (
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold mb-4">Acesso Negado</h2>
         <p className="text-gray-600">Apenas administradores podem gerenciar cartas.</p>
-        <p className="text-sm text-gray-500 mt-2">Seu perfil atual: {profile.role}</p>
-        <p className="text-xs text-gray-400 mt-1">Email: {profile.email}</p>
       </div>
     );
   }
 
-  const handleCreateCard = () => {
+  const handleCreateCard = async () => {
     if (!newCard.name || !newCard.description) {
       toast({
         title: "Erro",
@@ -86,41 +58,106 @@ export function ManageCards() {
       return;
     }
 
-    const card = {
-      id: Date.now().toString(),
-      ...newCard,
-      available: true
-    };
+    try {
+      const { error } = await supabase
+        .from('cards')
+        .insert({
+          name: newCard.name,
+          description: newCard.description,
+          rarity: newCard.rarity as 'common' | 'rare' | 'legendary' | 'mythic',
+          price: newCard.price,
+          available: true,
+          copies_available: newCard.copies_available
+        });
 
-    setCards([...cards, card]);
-    setNewCard({
-      name: '',
-      description: '',
-      rarity: 'common',
-      price: 50,
-      copies: 10
-    });
-    setIsCreating(false);
-    
-    toast({
-      title: "Sucesso",
-      description: "Carta criada com sucesso!",
-    });
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: "Carta criada com sucesso!",
+      });
+
+      setNewCard({
+        name: '',
+        description: '',
+        rarity: 'common',
+        price: 50,
+        copies_available: 10
+      });
+      setIsCreating(false);
+      refetch();
+    } catch (error) {
+      console.error('Erro ao criar carta:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível criar a carta",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDeleteCard = (cardId: string) => {
-    setCards(cards.filter(c => c.id !== cardId));
-    toast({
-      title: "Sucesso",
-      description: "Carta removida com sucesso!",
-    });
+  const handleDeleteCard = async (cardId: string) => {
+    try {
+      const { error } = await supabase
+        .from('cards')
+        .delete()
+        .eq('id', cardId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: "Carta removida com sucesso!",
+      });
+      refetch();
+    } catch (error) {
+      console.error('Erro ao remover carta:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível remover a carta",
+        variant: "destructive",
+      });
+    }
   };
 
-  const filteredCards = cards.filter(card =>
+  const toggleCardAvailability = async (cardId: string, currentAvailability: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('cards')
+        .update({ available: !currentAvailability })
+        .eq('id', cardId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: `Carta ${!currentAvailability ? 'ativada' : 'desativada'} com sucesso!`,
+      });
+      refetch();
+    } catch (error) {
+      console.error('Erro ao alterar disponibilidade:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível alterar a disponibilidade",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const filteredCards = cards?.filter(card =>
     card.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     card.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
     card.rarity.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ) || [];
+
+  const stats = {
+    total: cards?.length || 0,
+    available: cards?.filter(c => c.available).length || 0,
+    common: cards?.filter(c => c.rarity === 'common').length || 0,
+    rare: cards?.filter(c => c.rarity === 'rare').length || 0,
+    legendary: cards?.filter(c => c.rarity === 'legendary').length || 0,
+    mythic: cards?.filter(c => c.rarity === 'mythic').length || 0,
+  };
 
   return (
     <div className="space-y-6">
@@ -130,14 +167,50 @@ export function ManageCards() {
           <p className="text-gray-600 mt-1">
             Crie e gerencie cartas colecionáveis do sistema
           </p>
-          <p className="text-sm text-green-600 mt-2">
-            ✓ Acesso autorizado como administrador
-          </p>
         </div>
         <Button onClick={() => setIsCreating(true)} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
           Criar Nova Carta
         </Button>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+        <Card>
+          <CardContent className="pt-4">
+            <div className="text-2xl font-bold">{stats.total}</div>
+            <p className="text-sm text-gray-600">Total</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="text-2xl font-bold text-green-600">{stats.available}</div>
+            <p className="text-sm text-gray-600">Disponíveis</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="text-2xl font-bold text-gray-600">{stats.common}</div>
+            <p className="text-sm text-gray-600">Common</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="text-2xl font-bold text-blue-600">{stats.rare}</div>
+            <p className="text-sm text-gray-600">Rare</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="text-2xl font-bold text-yellow-600">{stats.legendary}</div>
+            <p className="text-sm text-gray-600">Legendary</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="text-2xl font-bold text-purple-600">{stats.mythic}</div>
+            <p className="text-sm text-gray-600">Mythic</p>
+          </CardContent>
+        </Card>
       </div>
 
       {isCreating && (
@@ -198,8 +271,8 @@ export function ManageCards() {
                   id="copies"
                   type="number"
                   min="1"
-                  value={newCard.copies}
-                  onChange={(e) => setNewCard({...newCard, copies: parseInt(e.target.value)})}
+                  value={newCard.copies_available}
+                  onChange={(e) => setNewCard({...newCard, copies_available: parseInt(e.target.value)})}
                 />
               </div>
             </div>
@@ -255,24 +328,18 @@ export function ManageCards() {
                     </span>
                   </TableCell>
                   <TableCell>{card.price}</TableCell>
-                  <TableCell>{card.copies}</TableCell>
+                  <TableCell>{card.copies_available}</TableCell>
                   <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      card.available 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {card.available ? 'Disponível' : 'Indisponível'}
-                    </span>
+                    <Button
+                      variant={card.available ? "outline" : "destructive"}
+                      size="sm"
+                      onClick={() => toggleCardAvailability(card.id, card.available)}
+                    >
+                      {card.available ? 'Ativo' : 'Inativo'}
+                    </Button>
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="sm">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Upload className="h-4 w-4" />
-                      </Button>
                       <Button variant="ghost" size="sm" onClick={() => handleDeleteCard(card.id)}>
                         <Trash2 className="h-4 w-4 text-red-500" />
                       </Button>
