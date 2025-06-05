@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, Coins, AlertCircle, CheckCircle } from 'lucide-react';
+import { Loader2, Coins, AlertCircle } from 'lucide-react';
+import { SuccessMessage } from './SuccessMessage';
 
 export function RegistrationForm() {
   const { signUp } = useAuth();
@@ -123,27 +124,7 @@ export function RegistrationForm() {
   };
 
   if (success) {
-    return (
-      <Card className="w-full max-w-md mx-auto">
-        <CardContent className="pt-6">
-          <div className="text-center space-y-4">
-            <CheckCircle className="h-12 w-12 text-green-600 mx-auto" />
-            <h3 className="text-lg font-semibold text-green-600">
-              Cadastro realizado com sucesso!
-            </h3>
-            <p className="text-gray-600">
-              Sua conta foi criada. Você já pode fazer login.
-            </p>
-            <Button 
-              onClick={() => setSuccess(false)}
-              className="w-full"
-            >
-              Fazer outro cadastro
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return <SuccessMessage onBackToForm={() => setSuccess(false)} />;
   }
 
   return (

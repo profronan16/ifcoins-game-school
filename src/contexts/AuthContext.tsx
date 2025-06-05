@@ -63,7 +63,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          await fetchProfile(session.user.id);
+          // Dar um tempo para o trigger do banco processar
+          setTimeout(() => {
+            if (mounted) {
+              fetchProfile(session.user.id);
+            }
+          }, 500);
         } else {
           setProfile(null);
         }
@@ -125,27 +130,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('Tentando cadastro para:', email, 'nome:', name);
       
-      // Determinar role baseado no email
-      let role: 'student' | 'teacher' | 'admin' = 'student';
-      const emailLower = email.trim().toLowerCase();
-      
-      if (emailLower.includes('@estudantes.ifpr.edu.br')) {
-        role = 'student';
-      } else if (emailLower.includes('@ifpr.edu.br')) {
-        role = 'teacher';
-      } else if (emailLower === 'paulocauan39@gmail.com') {
-        role = 'admin';
-      }
-      
-      console.log('Role determinado:', role);
-      
       const { error } = await supabase.auth.signUp({
-        email: emailLower,
+        email: email.trim().toLowerCase(),
         password,
         options: {
           data: {
             name: name.trim(),
-            role: role,
           },
         },
       });

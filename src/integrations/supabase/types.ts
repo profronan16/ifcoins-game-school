@@ -181,7 +181,7 @@ export type Database = {
           coins?: number
           created_at?: string | null
           email: string
-          id: string
+          id?: string
           name: string
           ra?: string | null
           role?: Database["public"]["Enums"]["user_role"]
