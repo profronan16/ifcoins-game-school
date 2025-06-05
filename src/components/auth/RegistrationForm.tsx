@@ -1,20 +1,19 @@
-// src/components/auth/RegistrationForm.tsx
+
 import React, { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext'; // Garanta que este import esteja correto
+import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { toast } from '@/hooks/use-toast'; // Hook para exibir notificações
-import { Loader2, Coins, AlertCircle } from 'lucide-react'; // Ícones
-import { SuccessMessage } from './SuccessMessage'; // Componente de mensagem de sucesso
+import { toast } from '@/hooks/use-toast';
+import { Loader2, Coins, AlertCircle } from 'lucide-react';
+import { SuccessMessage } from './SuccessMessage';
 
 export function RegistrationForm() {
-  const { signUp } = useAuth(); // Obtém a função signUp do contexto de autenticação
-  const [isLoading, setIsLoading] = useState(false); // Estado para controlar o carregamento
-  const [success, setSuccess] = useState(false); // Estado para mostrar mensagem de sucesso
+  const { signUp } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
   
-  // Estado do formulário
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -22,12 +21,8 @@ export function RegistrationForm() {
     confirmPassword: '',
   });
 
-  const [errors, setErrors] = useState<Record<string, string>>({}); // Estado para erros de validação do formulário
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  /**
-   * Valida os campos do formulário antes do envio.
-   * @returns true se o formulário for válido, false caso contrário.
-   */
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
     
@@ -55,48 +50,36 @@ export function RegistrationForm() {
       newErrors.confirmPassword = 'Senhas não conferem';
     }
     
-    setErrors(newErrors); // Atualiza o estado de erros
-    return Object.keys(newErrors).length === 0; // Retorna true se não houver erros
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  /**
-   * Lida com o envio do formulário de cadastro.
-   * @param e O evento de envio do formulário.
-   */
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); // Previne o comportamento padrão do formulário
+    e.preventDefault();
     
-    if (!validateForm()) { // Se a validação falhar, para a execução
+    if (!validateForm()) {
       return;
     }
 
-    setIsLoading(true); // Ativa o estado de carregamento
-    console.log('[RegistrationForm] Iniciando cadastro...'); // Log de início
+    setIsLoading(true);
+    console.log('Iniciando cadastro...');
     
     try {
-      const { error } = await signUp(form.email, form.password, form.name); // Chama a função signUp do useAuthActions
+      const { error } = await signUp(form.email, form.password, form.name);
       
       if (error) {
-        console.error('[RegistrationForm] Erro retornado pelo useAuth:', error); // Loga o erro retornado
+        console.error('Erro no cadastro:', error);
         
-        let errorMessage = "Erro ao criar conta. Por favor, tente novamente."; // Mensagem padrão de erro
+        let errorMessage = "Erro ao criar conta";
         
-        // Tenta extrair uma mensagem mais específica do objeto de erro
-        // Usamos 'error as any' para acessar propriedades que podem não estar tipadas
-        if ((error as any).message) {
-          const lowerCaseMessage = (error as any).message.toLowerCase();
-          if (lowerCaseMessage.includes('user already registered')) {
-            errorMessage = "Este email já está cadastrado. Tente fazer login.";
-          } else if (lowerCaseMessage.includes('invalid email')) {
-            errorMessage = "Email inválido. Verifique o formato do email.";
-          } else if (lowerCaseMessage.includes('weak password') || lowerCaseMessage.includes('at least 6 characters')) {
-            errorMessage = "Senha muito fraca. Use pelo menos 6 caracteres.";
-          } else {
-            errorMessage = (error as any).message; // Usa a mensagem exata se nenhuma das acima for um match
-          }
-        } else if (typeof error === 'object' && error !== null) {
-          // Se 'error.message' não existir, tenta serializar o objeto para ver seu conteúdo
-          errorMessage = `Erro desconhecido: ${JSON.stringify(error)}`;
+        if (error.message?.includes('User already registered')) {
+          errorMessage = "Este email já está cadastrado. Tente fazer login";
+        } else if (error.message?.includes('Invalid email')) {
+          errorMessage = "Email inválido";
+        } else if (error.message?.includes('Weak password')) {
+          errorMessage = "Senha muito fraca. Use pelo menos 6 caracteres";
+        } else if (error.message) {
+          errorMessage = error.message;
         }
         
         toast({
@@ -105,48 +88,41 @@ export function RegistrationForm() {
           variant: "destructive",
         });
       } else {
-        console.log('[RegistrationForm] Cadastro realizado com sucesso'); // Log de sucesso
-        setSuccess(true); // Exibe a mensagem de sucesso
+        console.log('Cadastro realizado com sucesso');
+        setSuccess(true);
         toast({
           title: "Cadastro realizado com sucesso!",
           description: "Bem-vindo ao IFCoins! Você já pode fazer login.",
         });
         
-        // Limpar formulário após sucesso
+        // Limpar formulário
         setForm({
           name: '',
           email: '',
           password: '',
           confirmPassword: '',
         });
-        setErrors({}); // Limpa os erros de validação
+        setErrors({});
       }
     } catch (err) {
-      // Captura erros inesperados que ocorreram durante a chamada de `signUp`
-      console.error('[RegistrationForm] Erro inesperado no cadastro (catch):', err);
+      console.error('Erro inesperado no cadastro:', err);
       toast({
         title: "Erro no cadastro",
-        description: "Erro inesperado. Por favor, tente novamente mais tarde.",
+        description: "Erro inesperado. Tente novamente.",
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false); // Desativa o estado de carregamento
+      setIsLoading(false);
     }
   };
 
-  /**
-   * Atualiza o valor de um campo do formulário e limpa o erro associado.
-   * @param field O nome do campo a ser atualizado.
-   * @param value O novo valor do campo.
-   */
   const updateField = (field: string, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' })); // Limpa o erro ao digitar
+      setErrors(prev => ({ ...prev, [field]: '' }));
     }
   };
 
-  // Se o cadastro foi um sucesso, exibe o componente SuccessMessage
   if (success) {
     return <SuccessMessage onBackToForm={() => setSuccess(false)} />;
   }
@@ -168,7 +144,6 @@ export function RegistrationForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Campo Nome */}
           <div className="space-y-2">
             <Label htmlFor="name">Nome Completo</Label>
             <Input
@@ -187,7 +162,6 @@ export function RegistrationForm() {
             )}
           </div>
 
-          {/* Campo Email */}
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -207,7 +181,6 @@ export function RegistrationForm() {
             )}
           </div>
 
-          {/* Campo Senha */}
           <div className="space-y-2">
             <Label htmlFor="password">Senha</Label>
             <Input
@@ -227,7 +200,6 @@ export function RegistrationForm() {
             )}
           </div>
 
-          {/* Campo Confirmar Senha */}
           <div className="space-y-2">
             <Label htmlFor="confirmPassword">Confirmar Senha</Label>
             <Input
@@ -257,7 +229,6 @@ export function RegistrationForm() {
           </Button>
         </form>
         
-        {/* Informações sobre tipos de conta */}
         <div className="mt-6 p-4 bg-gray-50 rounded-lg">
           <div className="text-sm text-gray-600 space-y-2">
             <h4 className="font-medium text-gray-800">Tipos de conta:</h4>
