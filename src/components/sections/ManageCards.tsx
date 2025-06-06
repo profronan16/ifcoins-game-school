@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
@@ -13,16 +12,27 @@ import { BookOpen, Plus, Edit, Trash2, Search } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
+interface CardFormData {
+  name: string;
+  description: string;
+  rarity: string;
+  price: number;
+  copies_available: number;
+  image_url?: string;
+}
+
 export function ManageCards() {
   const { profile } = useAuth();
   const [isCreating, setIsCreating] = useState(false);
+  const [editingCard, setEditingCard] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [newCard, setNewCard] = useState({
+  const [cardForm, setCardForm] = useState<CardFormData>({
     name: '',
     description: '',
     rarity: 'common',
     price: 50,
-    copies_available: 10
+    copies_available: 10,
+    image_url: ''
   });
 
   const { data: cards, isLoading, refetch } = useQuery({
@@ -48,8 +58,21 @@ export function ManageCards() {
     );
   }
 
+  const resetForm = () => {
+    setCardForm({
+      name: '',
+      description: '',
+      rarity: 'common',
+      price: 50,
+      copies_available: 10,
+      image_url: ''
+    });
+    setIsCreating(false);
+    setEditingCard(null);
+  };
+
   const handleCreateCard = async () => {
-    if (!newCard.name || !newCard.description) {
+    if (!cardForm.name || !cardForm.description) {
       toast({
         title: "Erro",
         description: "Preencha todos os campos obrigatórios",
@@ -62,12 +85,13 @@ export function ManageCards() {
       const { error } = await supabase
         .from('cards')
         .insert({
-          name: newCard.name,
-          description: newCard.description,
-          rarity: newCard.rarity as 'common' | 'rare' | 'legendary' | 'mythic',
-          price: newCard.price,
+          name: cardForm.name,
+          description: cardForm.description,
+          rarity: cardForm.rarity as 'common' | 'rare' | 'legendary' | 'mythic',
+          price: cardForm.price,
           available: true,
-          copies_available: newCard.copies_available
+          copies_available: cardForm.copies_available,
+          image_url: cardForm.image_url || null
         });
 
       if (error) throw error;
@@ -77,14 +101,7 @@ export function ManageCards() {
         description: "Carta criada com sucesso!",
       });
 
-      setNewCard({
-        name: '',
-        description: '',
-        rarity: 'common',
-        price: 50,
-        copies_available: 10
-      });
-      setIsCreating(false);
+      resetForm();
       refetch();
     } catch (error) {
       console.error('Erro ao criar carta:', error);
@@ -96,7 +113,65 @@ export function ManageCards() {
     }
   };
 
+  const handleEditCard = (card: any) => {
+    setEditingCard(card);
+    setCardForm({
+      name: card.name,
+      description: card.description || '',
+      rarity: card.rarity,
+      price: card.price,
+      copies_available: card.copies_available || 0,
+      image_url: card.image_url || ''
+    });
+    setIsCreating(false);
+  };
+
+  const handleUpdateCard = async () => {
+    if (!editingCard || !cardForm.name || !cardForm.description) {
+      toast({
+        title: "Erro",
+        description: "Preencha todos os campos obrigatórios",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('cards')
+        .update({
+          name: cardForm.name,
+          description: cardForm.description,
+          rarity: cardForm.rarity as 'common' | 'rare' | 'legendary' | 'mythic',
+          price: cardForm.price,
+          copies_available: cardForm.copies_available,
+          image_url: cardForm.image_url || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingCard.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: "Carta atualizada com sucesso!",
+      });
+
+      resetForm();
+      refetch();
+    } catch (error) {
+      console.error('Erro ao atualizar carta:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar a carta",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDeleteCard = async (cardId: string) => {
+    if (!window.confirm('Tem certeza que deseja deletar esta carta?')) return;
+
     try {
       const { error } = await supabase
         .from('cards')
@@ -146,7 +221,7 @@ export function ManageCards() {
 
   const filteredCards = cards?.filter(card =>
     card.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    card.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    card.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     card.rarity.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
 
@@ -213,10 +288,10 @@ export function ManageCards() {
         </Card>
       </div>
 
-      {isCreating && (
+      {(isCreating || editingCard) && (
         <Card>
           <CardHeader>
-            <CardTitle>Criar Nova Carta</CardTitle>
+            <CardTitle>{editingCard ? 'Editar Carta' : 'Criar Nova Carta'}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -224,14 +299,14 @@ export function ManageCards() {
                 <Label htmlFor="cardName">Nome da Carta</Label>
                 <Input
                   id="cardName"
-                  value={newCard.name}
-                  onChange={(e) => setNewCard({...newCard, name: e.target.value})}
+                  value={cardForm.name}
+                  onChange={(e) => setCardForm({...cardForm, name: e.target.value})}
                   placeholder="Ex: Laboratório de Física"
                 />
               </div>
               <div>
                 <Label htmlFor="rarity">Raridade</Label>
-                <Select value={newCard.rarity} onValueChange={(value) => setNewCard({...newCard, rarity: value})}>
+                <Select value={cardForm.rarity} onValueChange={(value) => setCardForm({...cardForm, rarity: value})}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione a raridade" />
                   </SelectTrigger>
@@ -248,10 +323,19 @@ export function ManageCards() {
               <Label htmlFor="description">Descrição</Label>
               <Textarea
                 id="description"
-                value={newCard.description}
-                onChange={(e) => setNewCard({...newCard, description: e.target.value})}
+                value={cardForm.description}
+                onChange={(e) => setCardForm({...cardForm, description: e.target.value})}
                 placeholder="Descreva a carta..."
                 rows={3}
+              />
+            </div>
+            <div>
+              <Label htmlFor="imageUrl">URL da Imagem</Label>
+              <Input
+                id="imageUrl"
+                value={cardForm.image_url}
+                onChange={(e) => setCardForm({...cardForm, image_url: e.target.value})}
+                placeholder="https://exemplo.com/imagem.jpg"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -261,8 +345,8 @@ export function ManageCards() {
                   id="price"
                   type="number"
                   min="1"
-                  value={newCard.price}
-                  onChange={(e) => setNewCard({...newCard, price: parseInt(e.target.value)})}
+                  value={cardForm.price}
+                  onChange={(e) => setCardForm({...cardForm, price: parseInt(e.target.value) || 0})}
                 />
               </div>
               <div>
@@ -270,15 +354,17 @@ export function ManageCards() {
                 <Input
                   id="copies"
                   type="number"
-                  min="1"
-                  value={newCard.copies_available}
-                  onChange={(e) => setNewCard({...newCard, copies_available: parseInt(e.target.value)})}
+                  min="0"
+                  value={cardForm.copies_available}
+                  onChange={(e) => setCardForm({...cardForm, copies_available: parseInt(e.target.value) || 0})}
                 />
               </div>
             </div>
             <div className="flex gap-2">
-              <Button onClick={handleCreateCard}>Criar Carta</Button>
-              <Button variant="outline" onClick={() => setIsCreating(false)}>Cancelar</Button>
+              <Button onClick={editingCard ? handleUpdateCard : handleCreateCard}>
+                {editingCard ? 'Atualizar Carta' : 'Criar Carta'}
+              </Button>
+              <Button variant="outline" onClick={resetForm}>Cancelar</Button>
             </div>
           </CardContent>
         </Card>
@@ -328,7 +414,7 @@ export function ManageCards() {
                     </span>
                   </TableCell>
                   <TableCell>{card.price}</TableCell>
-                  <TableCell>{card.copies_available}</TableCell>
+                  <TableCell>{card.copies_available || 0}</TableCell>
                   <TableCell>
                     <Button
                       variant={card.available ? "outline" : "destructive"}
@@ -340,6 +426,9 @@ export function ManageCards() {
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => handleEditCard(card)}>
+                        <Edit className="h-4 w-4 text-blue-500" />
+                      </Button>
                       <Button variant="ghost" size="sm" onClick={() => handleDeleteCard(card.id)}>
                         <Trash2 className="h-4 w-4 text-red-500" />
                       </Button>

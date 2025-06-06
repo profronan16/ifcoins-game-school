@@ -1,9 +1,16 @@
 
 import React from 'react';
-import { Card as CardType } from '@/types';
 
 interface CollectibleCardProps {
-  card: CardType;
+  card: {
+    id: string;
+    name: string;
+    rarity: 'common' | 'rare' | 'legendary' | 'mythic';
+    imageUrl: string;
+    available: boolean;
+    price: number;
+    description: string;
+  };
   quantity?: number;
   onClick?: () => void;
   className?: string;

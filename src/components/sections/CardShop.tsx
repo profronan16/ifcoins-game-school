@@ -106,10 +106,10 @@ export function CardShop() {
                     id: card.id,
                     name: card.name,
                     rarity: card.rarity,
-                    imageUrl: card.image_url || '',
+                    imageUrl: card.image_url || '/placeholder.svg',
                     available: card.available,
                     price: card.price,
-                    description: card.description
+                    description: card.description || ''
                   }}
                   className="h-48"
                 />
@@ -125,12 +125,12 @@ export function CardShop() {
                       {card.price} IFCoins
                     </span>
                     <span className="text-sm text-gray-500">
-                      {card.copies_available} disponíveis
+                      {card.copies_available || 0} disponíveis
                     </span>
                   </div>
                   <Button
                     onClick={() => handleBuyCard(card.id, card.name, card.price)}
-                    disabled={loading === card.id || card.copies_available <= 0 || profile.coins < card.price}
+                    disabled={loading === card.id || (card.copies_available || 0) <= 0 || profile.coins < card.price}
                     className="w-full bg-ifpr-green hover:bg-ifpr-green-dark"
                   >
                     {loading === card.id ? (
