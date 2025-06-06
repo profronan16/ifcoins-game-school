@@ -1,24 +1,15 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Coins, Users, Award } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Profile } from '@/types/supabase';
+import { AdminStats } from '@/components/admin/AdminStats';
+import { GiveCoinsForm } from '@/components/admin/GiveCoinsForm';
+import { RecentRewards } from '@/components/admin/RecentRewards';
 
 export function AdminGiveCoins() {
   const { profile } = useAuth();
-  const [selectedUser, setSelectedUser] = useState('');
-  const [coinsAmount, setCoinsAmount] = useState('');
-  const [reason, setReason] = useState('');
-  const [loading, setLoading] = useState(false);
 
   const { data: users, refetch: refetchUsers } = useQuery({
     queryKey: ['all-users'],
@@ -62,73 +53,6 @@ export function AdminGiveCoins() {
     );
   }
 
-  const handleGiveCoins = async () => {
-    if (!selectedUser || !coinsAmount || !reason) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Preencha todos os campos para dar moedas",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const amount = parseInt(coinsAmount);
-    if (amount <= 0 || amount > 1000) {
-      toast({
-        title: "Quantidade inválida",
-        description: "Você pode dar entre 1 e 1000 moedas",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      // Atualizar moedas do usuário - fix the parameter names
-      const { error: updateError } = await supabase.rpc('update_user_coins', {
-        user_id_param: selectedUser,
-        amount: amount
-      });
-
-      if (updateError) throw updateError;
-
-      // Registrar log da recompensa
-      const { error: logError } = await supabase
-        .from('reward_logs')
-        .insert({
-          teacher_id: profile.id,
-          student_id: selectedUser,
-          coins: amount,
-          reason: reason
-        });
-
-      if (logError) throw logError;
-
-      const selectedUserName = users?.find(u => u.id === selectedUser)?.name || 'Usuário';
-      
-      toast({
-        title: "Moedas entregues!",
-        description: `${amount} IFCoins foram dados para ${selectedUserName}`,
-      });
-
-      setSelectedUser('');
-      setCoinsAmount('');
-      setReason('');
-      refetchUsers();
-      
-    } catch (error) {
-      console.error('Erro ao dar moedas:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível dar as moedas",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="space-y-6">
       <div>
@@ -140,135 +64,15 @@ export function AdminGiveCoins() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-blue-600" />
-              <CardTitle className="text-lg">Total de Usuários</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-blue-600">{users?.length || 0}</p>
-            <p className="text-sm text-gray-600">Cadastrados no sistema</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-2">
-              <Coins className="h-5 w-5 text-yellow-600" />
-              <CardTitle className="text-lg">Moedas Distribuídas</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-yellow-600">
-              {recentRewards?.reduce((acc, reward) => acc + reward.coins, 0) || 0}
-            </p>
-            <p className="text-sm text-gray-600">Últimas 10 recompensas</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-2">
-              <Award className="h-5 w-5 text-green-600" />
-              <CardTitle className="text-lg">Recompensas</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-green-600">{recentRewards?.length || 0}</p>
-            <p className="text-sm text-gray-600">Registros recentes</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Coins className="h-5 w-5" />
-            Dar Moedas IFCoins
-          </CardTitle>
-          <CardDescription>
-            Recompense estudantes e professores por bom desempenho
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="user">Usuário</Label>
-              <Select value={selectedUser} onValueChange={setSelectedUser}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um usuário" />
-                </SelectTrigger>
-                <SelectContent>
-                  {users?.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name} - {user.role} ({user.email})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="coins">Quantidade de Moedas</Label>
-              <Input
-                id="coins"
-                type="number"
-                min="1"
-                max="1000"
-                placeholder="100"
-                value={coinsAmount}
-                onChange={(e) => setCoinsAmount(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="reason">Motivo da Recompensa</Label>
-            <Textarea
-              id="reason"
-              placeholder="Ex: Excelente participação no projeto de pesquisa"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              rows={3}
-            />
-          </div>
-          <Button 
-            onClick={handleGiveCoins}
-            className="bg-ifpr-green hover:bg-ifpr-green-dark"
-            disabled={loading}
-          >
-            <Coins className="h-4 w-4 mr-2" />
-            {loading ? 'Dando Moedas...' : 'Dar Moedas'}
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Histórico Recente</CardTitle>
-          <CardDescription>Últimas recompensas distribuídas</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {recentRewards?.map((reward) => (
-              <div key={reward.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex-1">
-                  <p className="font-medium">{reward.student.name}</p>
-                  <p className="text-sm text-gray-600">{reward.reason}</p>
-                  <p className="text-xs text-gray-500">por {reward.teacher.name}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-ifpr-green">+{reward.coins} IFCoins</p>
-                  <p className="text-xs text-gray-500">
-                    {new Date(reward.created_at).toLocaleDateString('pt-BR')}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <AdminStats users={users} recentRewards={recentRewards} />
+      
+      <GiveCoinsForm 
+        users={users} 
+        teacherId={profile.id}
+        onSuccess={refetchUsers}
+      />
+      
+      <RecentRewards recentRewards={recentRewards} />
     </div>
   );
 }
