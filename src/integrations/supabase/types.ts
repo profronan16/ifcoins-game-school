@@ -340,7 +340,39 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      buy_card: {
+        Args: { card_id: string; user_id: string }
+        Returns: Json
+      }
+      create_event: {
+        Args: {
+          name: string
+          description: string
+          start_date: string
+          end_date: string
+          bonus_multiplier: number
+        }
+        Returns: string
+      }
+      delete_event: {
+        Args: { event_id: string }
+        Returns: boolean
+      }
+      update_event: {
+        Args: {
+          event_id: string
+          name: string
+          description: string
+          start_date: string
+          end_date: string
+          bonus_multiplier: number
+        }
+        Returns: boolean
+      }
+      update_user_coins: {
+        Args: { user_id: string; amount: number }
+        Returns: undefined
+      }
     }
     Enums: {
       card_rarity: "common" | "rare" | "legendary" | "mythic"
