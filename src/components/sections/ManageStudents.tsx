@@ -66,7 +66,7 @@ export function ManageStudents() {
     setLoading(true);
 
     try {
-      // Atualizar moedas do usuário
+      // Atualizar moedas do usuário - fix the parameter names
       const { error: updateError } = await supabase.rpc('update_user_coins', {
         user_id_param: selectedUserId,
         amount: amount

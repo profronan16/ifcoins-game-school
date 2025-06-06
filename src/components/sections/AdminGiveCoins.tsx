@@ -85,7 +85,7 @@ export function AdminGiveCoins() {
     setLoading(true);
 
     try {
-      // Atualizar moedas do usuário
+      // Atualizar moedas do usuário - fix the parameter names
       const { error: updateError } = await supabase.rpc('update_user_coins', {
         user_id_param: selectedUser,
         amount: amount

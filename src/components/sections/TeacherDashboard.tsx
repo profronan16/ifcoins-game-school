@@ -109,7 +109,7 @@ export function TeacherDashboard() {
     setLoading(true);
 
     try {
-      // Atualizar moedas do estudante
+      // Atualizar moedas do estudante - fix the parameter names
       const { error: updateError } = await supabase.rpc('update_user_coins', {
         user_id_param: selectedStudent.id,
         amount: amount
