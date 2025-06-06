@@ -10,7 +10,7 @@ export function useUpdateCoins() {
     setLoading(true);
     try {
       const { error } = await supabase.rpc('update_user_coins', {
-        user_id_param: userId,
+        user_id: userId,
         amount: amount
       });
 

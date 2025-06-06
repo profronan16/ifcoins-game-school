@@ -44,8 +44,8 @@ export function CardShop() {
 
     try {
       const { data, error } = await supabase.rpc('buy_card', {
-        card_id_param: cardId,
-        user_id_param: profile.id,
+        card_id: cardId,
+        user_id: profile.id,
       });
 
       if (error) throw error;
