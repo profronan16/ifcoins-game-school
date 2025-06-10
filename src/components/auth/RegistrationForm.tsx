@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,55 +22,63 @@ export function RegistrationForm() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const getUserTypeFromEmail = (email: string) => {
+    if (email.endsWith('@estudantes.ifpr.edu.br')) return 'estudante';
+    if (email.endsWith('@ifpr.edu.br')) return 'professor';
+    if (email === 'paulocauan39@gmail.com') return 'admin';
+    return null;
+  };
+
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!form.name.trim()) {
       newErrors.name = 'Nome é obrigatório';
     } else if (form.name.trim().length < 2) {
       newErrors.name = 'Nome deve ter pelo menos 2 caracteres';
     }
-    
+
     if (!form.email.trim()) {
       newErrors.email = 'Email é obrigatório';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
       newErrors.email = 'Email inválido';
+    } else if (!getUserTypeFromEmail(form.email)) {
+      newErrors.email = 'Domínio de email não permitido';
     }
-    
+
     if (!form.password) {
       newErrors.password = 'Senha é obrigatória';
     } else if (form.password.length < 6) {
       newErrors.password = 'Senha deve ter pelo menos 6 caracteres';
     }
-    
+
     if (!form.confirmPassword) {
       newErrors.confirmPassword = 'Confirme sua senha';
     } else if (form.password !== form.confirmPassword) {
       newErrors.confirmPassword = 'Senhas não conferem';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
+
+    if (!validateForm()) return;
 
     setIsLoading(true);
     console.log('Iniciando cadastro...');
-    
+
     try {
-      const { error } = await signUp(form.email, form.password, form.name);
-      
+      const userType = getUserTypeFromEmail(form.email);
+      const { error } = await signUp(form.email, form.password, form.name /* , userType */);
+
       if (error) {
         console.error('Erro no cadastro:', error);
-        
+
         let errorMessage = "Erro ao criar conta";
-        
+
         if (error.message?.includes('User already registered')) {
           errorMessage = "Este email já está cadastrado. Tente fazer login";
         } else if (error.message?.includes('Invalid email')) {
@@ -81,7 +88,7 @@ export function RegistrationForm() {
         } else if (error.message) {
           errorMessage = error.message;
         }
-        
+
         toast({
           title: "Erro no cadastro",
           description: errorMessage,
@@ -94,8 +101,7 @@ export function RegistrationForm() {
           title: "Cadastro realizado com sucesso!",
           description: "Bem-vindo ao IFCoins! Você já pode fazer login.",
         });
-        
-        // Limpar formulário
+
         setForm({
           name: '',
           email: '',
@@ -218,9 +224,9 @@ export function RegistrationForm() {
               </p>
             )}
           </div>
-          
-          <Button 
-            type="submit" 
+
+          <Button
+            type="submit"
             className="w-full bg-blue-600 hover:bg-blue-700"
             disabled={isLoading}
           >
@@ -228,7 +234,7 @@ export function RegistrationForm() {
             {isLoading ? 'Cadastrando...' : 'Cadastrar'}
           </Button>
         </form>
-        
+
         <div className="mt-6 p-4 bg-gray-50 rounded-lg">
           <div className="text-sm text-gray-600 space-y-2">
             <h4 className="font-medium text-gray-800">Tipos de conta:</h4>
