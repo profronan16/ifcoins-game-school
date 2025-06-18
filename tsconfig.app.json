@@ -23,8 +23,8 @@
 
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["import.meta.env/*"]
     }
   },
-  "include": ["src"]
+  "include": ["import.meta.env"]
 }
